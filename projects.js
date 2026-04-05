@@ -254,7 +254,7 @@ const PROJECTS = [
     cat:     'Aviation',
     thumbLayout: 'lay-duo-equal',
     thumbs: [
-      { src: 'Projects/2012/aviation-piloting/foto_expedientes secretos X_ AREA 51 - CIA -NASA-FBI-PIÑERA.JPG', pos: '21.9% 59.6%' },
+      { src: 'Projects/2012/aviation-piloting/on-the-air.JPG', pos: '21.9% 59.6%' },
       { src: 'Projects/2012/aviation-piloting/SAM_0634.JPG', pos: '52.9% 70.9%' },
     ],
     text: [
@@ -264,7 +264,7 @@ const PROJECTS = [
       'The pivot was toward something that had been there since childhood as well — sound, and through sound, music. That decision became the first real thread in a longer story, and eventually the reason to be able to immigrate to Australia altogether."',
     ],
     gallery: [
-      { src: 'Projects/2012/aviation-piloting/foto_expedientes secretos X_ AREA 51 - CIA -NASA-FBI-PIÑERA.JPG', pos: '46.5% 73.3%' },
+      { src: 'Projects/2012/aviation-piloting/on-the-air.JPG', pos: '46.5% 73.3%' },
       'Projects/2012/aviation-piloting/SAM_0705.JPG',
       'Projects/2012/aviation-piloting/DSC05735.JPG',
       'Projects/2012/aviation-piloting/2012-07-26 15.50.03 (2).jpg',

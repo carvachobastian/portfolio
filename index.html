@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bastian Agusto Carvacho</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+  <style>
+
+    /* ================================================================
+       RESET + BASE
+    ================================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #F7F6F2;
+      --fg:       #0C0C0C;
+      --accent:   #1a5f7a;
+      --muted:    rgba(12,12,12,0.38);
+      --ghost:    rgba(12,12,12,0.030);
+      --divider:  rgba(12,12,12,0.10);
+      --tl-h:     80px;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Inter', sans-serif;
+      font-weight: 300;
+      -webkit-font-smoothing: antialiased;
+      cursor: none;
+    }
+
+    img { display: block; }
+    a   { color: inherit; text-decoration: none; cursor: none; }
+
+    /* ================================================================
+       CUSTOM CURSOR
+    ================================================================ */
+    .c-dot {
+      position: fixed; width: 5px; height: 5px;
+      border-radius: 50%; background: var(--fg);
+      transform: translate(-50%,-50%);
+      pointer-events: none; z-index: 10002;
+    }
+    .c-ring {
+      position: fixed; width: 36px; height: 36px;
+      border-radius: 50%; border: 1px solid rgba(12,12,12,0.30);
+      transform: translate(-50%,-50%);
+      pointer-events: none; z-index: 10001;
+      transition: width .45s cubic-bezier(.23,1,.32,1), height .45s cubic-bezier(.23,1,.32,1), border-color .3s;
+    }
+    .cursor-grow .c-ring { width: 64px; height: 64px; border-color: var(--accent); }
+
+    /* ================================================================
+       SCROLL CONTAINER
+    ================================================================ */
+    .scroll-wrap {
+      position: fixed; top: 0; left: 0; right: 0; bottom: var(--tl-h);
+      overflow-x: scroll; overflow-y: hidden; scrollbar-width: none;
+    }
+    .scroll-wrap::-webkit-scrollbar { display: none; }
+    .track { display: flex; height: 100%; width: max-content; }
+
+    /* ================================================================
+       SECTIONS
+    ================================================================ */
+    .section {
+      position: relative; width: 100vw; height: 100%;
+      flex-shrink: 0; display: flex; align-items: center; overflow: hidden;
+    }
+    .section + .section::before {
+      content: ''; position: absolute; left: 0; top: 8vh; bottom: 8vh;
+      width: 1px; background: var(--divider); z-index: 1;
+    }
+
+    /* ================================================================
+       INTRO
+    ================================================================ */
+    .intro { padding: 0 4vw 0 5vw; }
+    .intro-grid {
+      position: relative; z-index: 2; width: 100%; height: 100%;
+      display: grid; grid-template-columns: 24% 1fr; grid-template-rows: 1fr;
+      gap: 4vw; align-items: center; padding: 5vh 0;
+    }
+    .intro-body { position: relative; z-index: 2; max-width: 580px; }
+
+    .eyebrow {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 10px; font-weight: 600;
+      letter-spacing: .28em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 32px;
+    }
+    .intro-name {
+      font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+      font-size: clamp(60px, 7.8vw, 120px);
+      line-height: .88; letter-spacing: -.04em; margin-bottom: 40px;
+    }
+    .intro-name em { display: block; font-style: normal; color: var(--muted); }
+    .intro-bio {
+      font-size: 13.5px; line-height: 1.95; color: var(--muted);
+      max-width: 380px; margin-bottom: 56px;
+    }
+    .intro-links { display: flex; gap: 40px; }
+    .intro-links a {
+      font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 500;
+      letter-spacing: .22em; text-transform: uppercase;
+      position: relative; padding-bottom: 5px;
+    }
+    .intro-links a::after {
+      content: ''; position: absolute; bottom: 0; left: 0;
+      width: 0; height: 1px; background: var(--accent);
+      transition: width .4s cubic-bezier(.23,1,.32,1);
+    }
+    .intro-links a:hover::after { width: 100%; }
+
+    .intro-img-col {
+      height: 100%; position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .intro-img-col img {
+      width: 50%; height: 100%; object-fit: cover;
+      filter: saturate(.82) brightness(.96); transition: filter .7s ease;
+    }
+    .intro-img-col:hover img { filter: saturate(1) brightness(1); }
+
+    .scroll-cue {
+      position: absolute; right: 6vw; top: 50%;
+      transform: translateY(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 16px; z-index: 2;
+    }
+    .cue-track {
+      width: 1px; height: 80px; background: var(--divider);
+      position: relative; overflow: hidden;
+    }
+    .cue-track::after {
+      content: ''; position: absolute; top: -100%; left: 0;
+      width: 100%; height: 50%;
+      background: linear-gradient(to bottom, transparent, var(--accent));
+      animation: cue 2s ease-in-out infinite;
+    }
+    @keyframes cue {
+      0%   { top: -50%; opacity: 0; }
+      25%  { opacity: 1; }
+      100% { top: 110%; opacity: 0; }
+    }
+    .cue-label {
+      font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 500;
+      letter-spacing: .28em; text-transform: uppercase; color: var(--muted);
+      writing-mode: vertical-rl;
+    }
+
+    /* ================================================================
+       PROJECT SECTIONS
+    ================================================================ */
+    .project { padding: 0 4vw 0 5vw; }
+    .project-grid {
+      position: relative; z-index: 2; width: 100%; height: 100%;
+      display: grid; grid-template-columns: 24% 1fr; grid-template-rows: 1fr;
+      gap: 4vw; align-items: center; padding: 5vh 0;
+    }
+    .meta { display: flex; flex-direction: column; }
+
+    .yr-tag {
+      font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600;
+      letter-spacing: .28em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 20px;
+    }
+    .proj-title {
+      font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+      font-size: clamp(32px, 3.6vw, 58px);
+      line-height: 1.0; letter-spacing: -.03em; margin-bottom: 22px;
+    }
+    .proj-cat {
+      display: flex; align-items: center; gap: 12px;
+      font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 500;
+      letter-spacing: .22em; text-transform: uppercase; color: var(--muted);
+    }
+    .proj-cat::before {
+      content: ''; display: block; width: 24px; height: 1px;
+      background: currentColor; flex-shrink: 0;
+    }
+    .view-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600;
+      letter-spacing: .22em; text-transform: uppercase; color: var(--fg);
+      background: none; border: none; padding: 0 0 5px 0; cursor: none;
+      margin-top: 32px; position: relative; transition: color .25s;
+    }
+    .view-btn::after {
+      content: ''; position: absolute; bottom: 0; left: 0;
+      width: 100%; height: 1px; background: var(--accent);
+      transform: scaleX(0); transform-origin: left;
+      transition: transform .4s cubic-bezier(.23,1,.32,1);
+    }
+    .view-btn:hover::after { transform: scaleX(1); }
+    .view-btn:hover { color: var(--accent); }
+    .view-btn .arr { transition: transform .3s cubic-bezier(.23,1,.32,1); }
+    .view-btn:hover .arr { transform: translateX(5px); }
+
+    /* ── Image column ── */
+    .img-col { height: 100%; position: relative; overflow: hidden; }
+    .lay-single { height: 100%; }
+    .lay-single img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* 2-photo: original stagger (kept for existing entries) */
+    .lay-duo {
+      display: grid; grid-template-columns: 60% 1fr; gap: 8px;
+      height: 100%; align-items: start;
+    }
+    .lay-duo img { width: 100%; object-fit: cover; }
+    .lay-duo img:first-child { height: 100%; }
+    .lay-duo img:last-child  { height: 68%; margin-top: 10%; }
+
+    /* A — Equal 50/50, both full height */
+    .lay-duo-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 100%; }
+    .lay-duo-equal img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* B — Feature 70/30, both full height */
+    .lay-duo-feature { display: grid; grid-template-columns: 70% 1fr; gap: 8px; height: 100%; }
+    .lay-duo-feature img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* C — Diptych: two portrait panels centered with breathing room */
+    .lay-duo-diptych {
+      display: flex; gap: 16px; height: 100%;
+      align-items: center; justify-content: center;
+    }
+    .lay-duo-diptych img { width: 44%; height: 90%; object-fit: cover; flex-shrink: 0; }
+
+    /* D — Vertical stack: top + bottom */
+    .lay-duo-hstack { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+    .lay-duo-hstack img { width: 100%; flex: 1; min-height: 0; object-fit: cover; }
+
+    .lay-trio {
+      display: grid; grid-template-columns: 60% 1fr;
+      grid-template-rows: 1fr 1fr; gap: 8px; height: 100%;
+    }
+    .lay-trio img { width: 100%; height: 100%; object-fit: cover; }
+    .lay-trio img:first-child { grid-row: span 2; }
+
+    .img-col img { filter: saturate(.82) brightness(.96); transition: filter .7s ease; }
+    .img-col:hover img { filter: saturate(1) brightness(1); }
+
+    /* ================================================================
+       REVEAL ANIMATION
+    ================================================================ */
+    .reveal {
+      opacity: 0; transform: translateY(16px);
+      transition: opacity .9s cubic-bezier(.23,1,.32,1), transform .9s cubic-bezier(.23,1,.32,1);
+    }
+    .reveal.on { opacity: 1; transform: translateY(0); }
+
+    /* ================================================================
+       BOTTOM TIMELINE BAR
+    ================================================================ */
+    .btl {
+      position: fixed; bottom: 0; left: 0; right: 0; height: var(--tl-h);
+      background: rgba(247,246,242,0.96);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--divider); z-index: 200;
+    }
+    .btl-track {
+      position: absolute; left: 8vw; right: 8vw; top: 50%; transform: translateY(-50%);
+      height: 1px; background: var(--divider);
+    }
+    .btl-fill { height: 100%; background: var(--accent); width: 0%; transition: width .08s linear; }
+    .btl-nodes { position: absolute; left: 8vw; right: 8vw; top: 0; bottom: 0; }
+
+    .btl-node {
+      position: absolute; top: 50%; transform: translate(-50%, -50%);
+      display: flex; flex-direction: column; align-items: center; cursor: none;
+    }
+    .btl-year {
+      font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 600;
+      letter-spacing: .20em; text-transform: uppercase; color: var(--accent);
+      opacity: 0.50; margin-bottom: 6px; transition: opacity .3s; white-space: nowrap;
+    }
+    .btl-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      border: 1.5px solid var(--accent); background: var(--bg); flex-shrink: 0;
+      transition: background .3s, transform .3s cubic-bezier(.23,1,.32,1);
+    }
+    .btl-name {
+      font-family: 'Space Grotesk', sans-serif; font-size: 8px; font-weight: 500;
+      letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
+      opacity: 0.50; margin-top: 6px; transition: opacity .3s, color .3s; white-space: nowrap;
+    }
+    .btl-node.active .btl-dot { background: var(--accent); transform: scale(1.6); }
+    .btl-node.active .btl-year { opacity: 1; }
+    .btl-node.active .btl-name { opacity: 1; color: var(--fg); }
+    .btl-node:hover .btl-dot { background: var(--accent); transform: scale(1.3); }
+    .btl-node:hover .btl-year, .btl-node:hover .btl-name { opacity: 0.80; }
+
+    .btl-copy {
+      position: absolute; left: 2vw; bottom: 12px;
+      font-family: 'Space Grotesk', sans-serif; font-size: 8px; font-weight: 500;
+      letter-spacing: .18em; text-transform: uppercase; color: var(--muted); opacity: 0.45;
+    }
+
+    /* ================================================================
+       LIGHTBOX
+    ================================================================ */
+    .lb {
+      position: fixed; inset: 0; background: rgba(247,246,242,0.97);
+      backdrop-filter: blur(20px); z-index: 10000; cursor: none;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity .4s;
+    }
+    .lb.open { opacity: 1; pointer-events: all; }
+    .lb img { max-width: 82vw; max-height: 90vh; object-fit: contain; }
+    .lb-close {
+      position: absolute; top: 32px; right: 44px;
+      font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600;
+      letter-spacing: .22em; text-transform: uppercase; color: var(--muted); cursor: none; transition: color .25s;
+    }
+    .lb-close:hover { color: var(--fg); }
+    .lb-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600;
+      letter-spacing: .22em; text-transform: uppercase; color: var(--muted);
+      cursor: none; background: none; border: none; padding: 24px;
+      transition: color .25s, transform .3s cubic-bezier(.23,1,.32,1);
+      user-select: none;
+    }
+    .lb-arrow:hover { color: var(--fg); }
+    .lb-arrow.prev { left: 20px; }
+    .lb-arrow.prev:hover { transform: translateY(-50%) translateX(-4px); }
+    .lb-arrow.next { right: 20px; }
+    .lb-arrow.next:hover { transform: translateY(-50%) translateX(4px); }
+    .lb-arrow.hidden { opacity: 0; pointer-events: none; }
+    .lb-counter {
+      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+      font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 500;
+      letter-spacing: .24em; text-transform: uppercase; color: var(--muted);
+    }
+
+    /* ================================================================
+       DETAIL OVERLAY
+    ================================================================ */
+    .det-ov {
+      position: fixed; inset: 0; background: var(--bg); z-index: 5000; cursor: none;
+      opacity: 0; pointer-events: none; transform: translateY(16px);
+      transition: opacity .5s cubic-bezier(.23,1,.32,1), transform .5s cubic-bezier(.23,1,.32,1);
+      overflow-y: auto; overflow-x: hidden;
+      scrollbar-width: thin; scrollbar-color: rgba(12,12,12,.08) transparent;
+    }
+    .det-ov.open { opacity: 1; pointer-events: all; transform: translateY(0); }
+    .det-wrap { min-height: 100vh; padding: 48px 6vw 100px; display: flex; flex-direction: column; }
+
+    .det-close {
+      align-self: flex-start; display: inline-flex; align-items: center; gap: 10px;
+      font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600;
+      letter-spacing: .22em; text-transform: uppercase; color: var(--muted);
+      background: none; border: none; cursor: none; padding: 0 0 5px 0;
+      position: relative; margin-bottom: 60px; transition: color .25s;
+    }
+    .det-close::after {
+      content: ''; position: absolute; bottom: 0; left: 0;
+      width: 100%; height: 1px; background: var(--divider); transition: background .25s;
+    }
+    .det-close:hover { color: var(--fg); }
+    .det-close:hover::after { background: var(--fg); }
+
+    .det-hd {
+      border-top: 1px solid var(--divider); padding: 36px 0 48px; margin-bottom: 72px;
+      display: flex; align-items: flex-end; justify-content: space-between; gap: 40px;
+    }
+    .det-yr {
+      font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600;
+      letter-spacing: .28em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 18px;
+    }
+    .det-title {
+      font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+      font-size: clamp(44px, 5.8vw, 96px); line-height: .92; letter-spacing: -.035em;
+    }
+    .det-cat-hd {
+      font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 500;
+      letter-spacing: .2em; text-transform: uppercase; color: var(--muted);
+      flex-shrink: 0; text-align: right; max-width: 240px; line-height: 2;
+    }
+
+    .det-body { display: grid; grid-template-columns: 38% 1fr; gap: 6vw; align-items: start; }
+    .det-text { position: sticky; top: 48px; }
+    .det-text p { font-size: 14px; line-height: 2.0; color: var(--muted); margin-bottom: 22px; }
+    .det-text p:last-of-type { margin-bottom: 0; }
+    .det-text strong { color: var(--fg); font-weight: 400; }
+
+    .det-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .det-gallery img {
+      width: 100%; height: auto; object-fit: cover; cursor: none;
+      filter: saturate(.85); transition: filter .5s;
+    }
+    .det-gallery img.wide { grid-column: span 2; aspect-ratio: 16/9; }
+    .det-gallery img:not(.wide) { aspect-ratio: 3/2; }
+    .det-gallery img:hover { filter: saturate(1); }
+
+    /* Video embeds in gallery */
+    .det-gallery-video {
+      position: relative; overflow: hidden; background: #000;
+    }
+    .det-gallery-video.wide { grid-column: span 2; aspect-ratio: 16/9; }
+    .det-gallery-video:not(.wide) { aspect-ratio: 3/2; }
+    .det-gallery-video iframe,
+    .det-gallery-video video {
+      position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+    }
+    .det-gallery-video video { object-fit: contain; background: #000; }
+
+    /* ================================================================
+       MOBILE
+    ================================================================ */
+    @media (max-width: 768px) {
+      html, body { overflow: auto; cursor: auto; height: auto; }
+      .c-dot, .c-ring { display: none; }
+      .scroll-wrap { position: static; overflow: visible; height: auto; bottom: auto; }
+      .track { flex-direction: column; width: 100%; height: auto; }
+      .section {
+        width: 100%; height: auto; flex-shrink: unset;
+        padding: 48px 5vw 48px; flex-direction: column;
+        justify-content: center; align-items: flex-start;
+      }
+      .section + .section::before { display: none; }
+      .intro { padding: 64px 5vw 48px; }
+      .intro-grid {
+        display: flex; flex-direction: column; gap: 28px;
+        width: 100%; height: auto; padding: 0;
+      }
+      .intro-body { max-width: 100%; }
+      .intro-name { font-size: clamp(44px, 13vw, 80px); width: 100%; }
+      .intro-img-col { width: 100%; height: 70vw; }
+      .scroll-cue { display: none; }
+      .project { padding: 48px 5vw 48px; }
+      .project-grid {
+        display: flex; flex-direction: column; gap: 24px;
+        width: 100%; height: auto; padding: 0;
+      }
+      .proj-title {
+        font-size: clamp(36px, 10vw, 60px);
+        line-height: 0.95; letter-spacing: -.04em;
+      }
+      .meta { width: 100%; }
+      .img-col { width: 100%; height: 60vw; }
+      .lay-single { height: 60vw; }
+      .lay-single img { height: 60vw; }
+      .lay-duo { height: 60vw; gap: 6px; }
+      .lay-duo img:first-child { height: 60vw; }
+      .lay-duo img:last-child  { height: 40vw; margin-top: 8vw; }
+      .lay-duo-equal, .lay-duo-feature { height: 60vw; gap: 6px; }
+      .lay-duo-equal img, .lay-duo-feature img { height: 60vw; }
+      .lay-duo-diptych { height: 60vw; gap: 10px; }
+      .lay-duo-diptych img { width: 46%; height: 60vw; }
+      .lay-duo-hstack { height: 80vw; }
+      .lay-duo-hstack img { height: calc(50% - 3px); }
+      .lay-trio { height: 60vw; gap: 6px; }
+      .reveal { opacity: 1; transform: none; }
+
+      /* ── Mobile timeline ── */
+      .btl { overflow-x: auto; scrollbar-width: none; }
+      .btl::-webkit-scrollbar { display: none; }
+      .btl-name { display: none; }
+      .btl-copy { display: none; }
+
+      .det-body { grid-template-columns: 1fr; }
+      .det-text { position: static; }
+      .det-hd { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .det-cat-hd { text-align: left; max-width: 100%; }
+      .det-gallery { grid-template-columns: 1fr; }
+      .det-gallery img.wide { grid-column: span 1; }
+      .det-gallery-video.wide { grid-column: span 1; }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="c-dot"  id="cDot"></div>
+  <div class="c-ring" id="cRing"></div>
+
+  <div class="det-ov" id="detOv">
+    <div class="det-wrap">
+      <button class="det-close" id="detClose">← Back to timeline</button>
+      <div class="det-hd"  id="detHd"></div>
+      <div class="det-body" id="detBody"></div>
+    </div>
+  </div>
+
+  <div class="lb" id="lb">
+    <span class="lb-close" id="lbClose">Close ✕</span>
+    <button class="lb-arrow prev hidden" id="lbPrev">← Prev</button>
+    <img id="lbImg" src="" alt="">
+    <button class="lb-arrow next hidden" id="lbNext">Next →</button>
+    <span class="lb-counter" id="lbCounter"></span>
+  </div>
+
+  <div class="scroll-wrap" id="sw">
+    <div class="track" id="track">
+
+      <!-- ── INTRO (hardcoded — edit directly here) ── -->
+      <section class="section intro">
+        <div class="intro-grid">
+          <div class="intro-body">
+            <p class="eyebrow">Audiovisual Production Supervisor — Australia</p>
+            <h1 class="intro-name">Bastian Agusto<em>Carvacho</em></h1>
+            <p class="intro-bio">
+              Audio Visual Supervisor.
+              Sound Engineer, Photographer, Musician.
+              Former Foley Artist and editor. Former Pilot.
+              Exploring the intersection of lights, sounds, and digital texture.<br>
+              A career built on creativity, precision, and perpetual reinvention.
+            </p>
+            <div class="intro-links">
+              <a href="https://instagram.com" target="_blank">Instagram</a>
+              <a href="https://linkedin.com"  target="_blank">LinkedIn</a>
+              <a href="mailto:bastian.ac7@gmail.com">Email</a>
+            </div>
+          </div>
+          <div class="intro-img-col">
+            <!-- DROP YOUR PHOTO INTO THE PORTFOLIO FOLDER AND UPDATE THE SRC BELOW -->
+            <img src="Projects/intro-photo.jpg" alt="Bastian Agusto Carvacho">
+          </div>
+        </div>
+        <div class="scroll-cue">
+          <div class="cue-track"></div>
+          <span class="cue-label">Scroll</span>
+        </div>
+      </section>
+
+      <!-- Project sections are injected here by JS from projects.js -->
+
+    </div>
+  </div>
+
+  <div class="btl" id="btl">
+    <div class="btl-track"><div class="btl-fill" id="btlFill"></div></div>
+    <div class="btl-nodes" id="btlNodes"></div>
+    <span class="btl-copy">BC © 2026</span>
+  </div>
+
+  <!-- Projects data — edit projects.js, never this file -->
+  <script src="projects.js"></script>
+
+  <script>
+    'use strict';
+
+    /* ── helpers ─────────────────────────────────────────────── */
+    function esc(s) {
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function cursorGrow(els) {
+      els.forEach(el => {
+        el.addEventListener('mouseenter', () => document.body.classList.add('cursor-grow'));
+        el.addEventListener('mouseleave', () => document.body.classList.remove('cursor-grow'));
+      });
+    }
+
+    /* ── RENDER PROJECTS ─────────────────────────────────────── */
+    const track    = document.getElementById('track');
+    const btlFill  = document.getElementById('btlFill');
+    const btlNodes = document.getElementById('btlNodes');
+
+    /* Detect media type from URL */
+    function mediaType(src) {
+      if (/youtube\.com|youtu\.be/.test(src))       return 'youtube';
+      if (/vimeo\.com/.test(src))                   return 'vimeo';
+      if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(src)) return 'video';
+      return 'image';
+    }
+
+    /* Convert watch URL → embed URL */
+    function embedUrl(src, type) {
+      if (type === 'youtube') {
+        const m = src.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
+        return m ? 'https://www.youtube.com/embed/' + m[1] + '?rel=0' : src;
+      }
+      if (type === 'vimeo') {
+        const m = src.match(/vimeo\.com\/(\d+)/);
+        return m ? 'https://player.vimeo.com/video/' + m[1] : src;
+      }
+      return src;
+    }
+
+    /* Resolve a thumb/gallery entry — supports plain string or {src, pos} object */
+    function imgEntry(t) {
+      if (typeof t === 'string') return { src: t, pos: null };
+      return { src: t.src || '', pos: t.pos || null };
+    }
+
+    /* Render a single gallery item — image or video */
+    function renderGalleryItem(t, i) {
+      const { src, pos } = imgEntry(t);
+      const cls  = i === 0 ? 'wide' : '';
+      const type = mediaType(src);
+      if (type === 'youtube' || type === 'vimeo') {
+        return `<div class="det-gallery-video ${cls}">` +
+          `<iframe src="${esc(embedUrl(src, type))}" allowfullscreen></iframe>` +
+          `</div>`;
+      }
+      if (type === 'video') {
+        return `<div class="det-gallery-video ${cls}">` +
+          `<video src="${esc(src)}" controls preload="none"></video>` +
+          `</div>`;
+      }
+      const style = pos ? ` style="object-position:${esc(pos)}"` : '';
+      return `<img src="${esc(src)}" alt="" class="${cls}" data-lb${style}>`;
+    }
+
+    (typeof PROJECTS !== 'undefined' ? PROJECTS : []).forEach((proj, idx) => {
+      const n           = (proj.thumbs || []).length;
+      const layoutClass = n >= 3 ? 'lay-trio'
+                        : n === 2 ? (proj.thumbLayout || 'lay-duo')
+                        : 'lay-single';
+      const thumbsHTML  = (proj.thumbs || []).slice(0, 3)
+        .map(t => {
+          const { src, pos } = imgEntry(t);
+          const style = pos ? ` style="object-position:${esc(pos)}"` : '';
+          return `<img src="${esc(src)}" alt="${proj.title.map(esc).join(' ')}" data-lb${style}>`;
+        })
+        .join('');
+
+      /* Project section */
+      const sec = document.createElement('section');
+      sec.className = 'section project';
+      sec.innerHTML = `
+        <div class="project-grid">
+          <div class="meta reveal">
+            <span class="yr-tag">${esc(proj.yearTag)}</span>
+            <h2 class="proj-title">${proj.title.map(esc).join('<br>')}</h2>
+            <span class="proj-cat">${esc(proj.cat)}</span>
+            <button class="view-btn" data-proj-idx="${idx}">
+              View project <span class="arr">→</span>
+            </button>
+          </div>
+          <div class="img-col reveal" style="transition-delay:.12s">
+            <div class="${layoutClass}">${thumbsHTML}</div>
+          </div>
+        </div>`;
+      track.appendChild(sec);
+
+      /* Timeline node — evenly distributed */
+      const total = PROJECTS.length;
+      const pct   = total === 1 ? 0.5 : idx / (total - 1);
+      const node  = document.createElement('div');
+      node.className      = 'btl-node';
+      node.style.left     = (pct * 100) + '%';
+      node.dataset.secIdx = idx + 1; // 0 = intro
+      node.innerHTML =
+        `<span class="btl-year">${esc(proj.year)}</span>` +
+        `<div class="btl-dot"></div>` +
+        `<span class="btl-name">${proj.title.map(esc).join(' ')}</span>`;
+      btlNodes.appendChild(node);
+
+      node.addEventListener('click', () => {
+        if (isMobile()) {
+          sections[idx + 1].scrollIntoView({ behavior: 'smooth' });
+        } else {
+          sw.scrollTo({ left: (idx + 1) * sw.clientWidth, behavior: 'smooth' });
+        }
+      });
+    });
+
+    /* Wire cursor grow on all interactive elements */
+    cursorGrow(document.querySelectorAll('a, [data-lb], .lb-close, .lb-arrow, .view-btn, .det-close'));
+    cursorGrow(btlNodes.querySelectorAll('.btl-node'));
+
+    /* ── SCROLL ──────────────────────────────────────────────── */
+    const sw       = document.getElementById('sw');
+    const sections = document.querySelectorAll('.section');
+
+    sw.addEventListener('wheel', e => {
+      e.preventDefault(); sw.scrollLeft += e.deltaY + e.deltaX;
+    }, { passive: false });
+
+    let dragging = false, dStartX, dScrollL;
+    sw.addEventListener('mousedown', e => {
+      dragging = true; dStartX = e.pageX - sw.offsetLeft; dScrollL = sw.scrollLeft;
+      sw.style.userSelect = 'none';
+    });
+    document.addEventListener('mouseup', () => { dragging = false; sw.style.userSelect = ''; });
+    sw.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      e.preventDefault();
+      sw.scrollLeft = dScrollL - (e.pageX - sw.offsetLeft - dStartX) * 1.5;
+    });
+
+    let tX = 0, tL = 0;
+    sw.addEventListener('touchstart', e => { tX = e.touches[0].pageX; tL = sw.scrollLeft; }, { passive: true });
+    sw.addEventListener('touchmove',  e => { sw.scrollLeft = tL + (tX - e.touches[0].pageX) * 1.2; }, { passive: true });
+
+    document.addEventListener('keydown', e => {
+      if (lb.classList.contains('open')) {
+        if (e.key === 'ArrowRight') lbShow(lbIdx + 1);
+        if (e.key === 'ArrowLeft')  lbShow(lbIdx - 1);
+        return;
+      }
+      if (detOv.classList.contains('open')) return;
+      if (e.key === 'ArrowRight') sw.scrollBy({ left:  window.innerWidth, behavior: 'smooth' });
+      if (e.key === 'ArrowLeft')  sw.scrollBy({ left: -window.innerWidth, behavior: 'smooth' });
+    });
+
+    const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+
+    function update() {
+      if (isMobile()) return;          // desktop only
+      const sl  = sw.scrollLeft;
+      const max = sw.scrollWidth - sw.clientWidth;
+      btlFill.style.width = (max > 0 ? sl / max * 100 : 0) + '%';
+
+      const activeIdx = Math.round(sl / sw.clientWidth);
+      btlNodes.querySelectorAll('.btl-node').forEach(node => {
+        node.classList.toggle('active', parseInt(node.dataset.secIdx) === activeIdx);
+      });
+
+      sections.forEach((sec, i) => {
+        if (Math.abs(sl - i * sw.clientWidth) < sw.clientWidth * 0.7)
+          sec.querySelectorAll('.reveal').forEach(el => el.classList.add('on'));
+      });
+    }
+
+    function updateMobile() {
+      if (!isMobile()) return;          // mobile only
+      const scrollY  = window.scrollY;
+      const docH     = document.documentElement.scrollHeight - window.innerHeight;
+      btlFill.style.width = (docH > 0 ? scrollY / docH * 100 : 0) + '%';
+
+      /* Find which section is most in view */
+      let activeIdx = 0;
+      const viewMid = scrollY + window.innerHeight * 0.4;
+      sections.forEach((sec, i) => {
+        if (sec.offsetTop <= viewMid) activeIdx = i;
+      });
+
+      btlNodes.querySelectorAll('.btl-node').forEach(node => {
+        node.classList.toggle('active', parseInt(node.dataset.secIdx) === activeIdx);
+      });
+
+      /* Auto-scroll the timeline bar to keep active node visible */
+      const btl = document.getElementById('btl');
+      const activeNode = btlNodes.querySelector('.btl-node.active');
+      if (activeNode && btl) {
+        const nodeLeft = activeNode.offsetLeft - btl.offsetWidth / 2;
+        btl.scrollTo({ left: nodeLeft, behavior: 'smooth' });
+      }
+    }
+
+    sw.addEventListener('scroll', update);
+    window.addEventListener('scroll', updateMobile, { passive: true });
+    setTimeout(() => {
+      sections[0].querySelectorAll('.reveal').forEach(el => el.classList.add('on'));
+      update();
+      updateMobile();
+    }, 100);
+
+    /* ── CURSOR ──────────────────────────────────────────────── */
+    const dot = document.getElementById('cDot');
+    const ring = document.getElementById('cRing');
+    let mx = 0, my = 0, rx = 0, ry = 0;
+    document.addEventListener('mousemove', e => {
+      mx = e.clientX; my = e.clientY;
+      dot.style.left = mx + 'px'; dot.style.top = my + 'px';
+    });
+    (function loop() {
+      rx += (mx - rx) * 0.10; ry += (my - ry) * 0.10;
+      ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+      requestAnimationFrame(loop);
+    })();
+
+    /* ── LIGHTBOX ────────────────────────────────────────────── */
+    const lb        = document.getElementById('lb');
+    const lbImg     = document.getElementById('lbImg');
+    const lbClose   = document.getElementById('lbClose');
+    const lbPrev    = document.getElementById('lbPrev');
+    const lbNext    = document.getElementById('lbNext');
+    const lbCounter = document.getElementById('lbCounter');
+
+    let lbGallery = [];   // array of img src strings for current gallery
+    let lbIdx     = 0;    // current index
+
+    function lbShow(idx) {
+      lbIdx = Math.max(0, Math.min(idx, lbGallery.length - 1));
+      lbImg.src = lbGallery[lbIdx];
+      lbCounter.textContent = lbGallery.length > 1
+        ? (lbIdx + 1) + ' / ' + lbGallery.length : '';
+      lbPrev.classList.toggle('hidden', lbIdx === 0);
+      lbNext.classList.toggle('hidden', lbIdx === lbGallery.length - 1);
+    }
+
+    document.addEventListener('click', e => {
+      const img = e.target.closest('[data-lb]');
+      if (!img) return;
+      // Collect all [data-lb] imgs in the same parent container
+      const container = img.closest('.det-gallery, .lay-single, .lay-duo, .lay-trio') || img.parentElement;
+      const siblings  = Array.from(container.querySelectorAll('[data-lb]'));
+      lbGallery = siblings.map(el => el.src);
+      lbShow(siblings.indexOf(img));
+      lb.classList.add('open');
+    });
+
+    const closeLb = () => lb.classList.remove('open');
+    lbClose.addEventListener('click', closeLb);
+    lb.addEventListener('click', e => { if (e.target === lb) closeLb(); });
+    lbPrev.addEventListener('click', () => lbShow(lbIdx - 1));
+    lbNext.addEventListener('click', () => lbShow(lbIdx + 1));
+
+    /* ── DETAIL OVERLAY ──────────────────────────────────────── */
+    const detOv    = document.getElementById('detOv');
+    const detHd    = document.getElementById('detHd');
+    const detBody  = document.getElementById('detBody');
+    const detClose = document.getElementById('detClose');
+
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.view-btn');
+      if (!btn) return;
+      e.stopPropagation();
+
+      const proj = PROJECTS[parseInt(btn.dataset.projIdx)];
+      if (!proj) return;
+
+      /* Header */
+      const catLines = proj.cat.split('·').map(s => esc(s.trim())).join('<br>');
+      detHd.innerHTML = `
+        <div>
+          <span class="det-yr">${esc(proj.yearTag)}</span>
+          <h2 class="det-title">${proj.title.map(esc).join('<br>')}</h2>
+        </div>
+        <span class="det-cat-hd">${catLines}</span>`;
+
+      /* Body */
+      const parasHTML = (proj.text || []).map(p => `<p>${p}</p>`).join('');
+
+      const galleryHTML = (proj.gallery || []).map((t, i) => renderGalleryItem(t, i)).join('');
+
+      detBody.innerHTML = `
+        <div class="det-text">${parasHTML}</div>
+        <div class="det-gallery">${galleryHTML}</div>`;
+
+      detOv.scrollTop = 0;
+      detOv.classList.add('open');
+    });
+
+    function closeDetail() { detOv.classList.remove('open'); }
+    detClose.addEventListener('click', closeDetail);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { closeLb(); closeDetail(); }
+    });
+
+  </script>
+</body>
+</html>

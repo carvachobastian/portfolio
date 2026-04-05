@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Project Entry</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #F7F6F2; --fg: #0C0C0C; --accent: #1a5f7a;
+      --accent-light: rgba(26,95,122,0.08);
+      --border: rgba(12,12,12,0.12); --muted: rgba(12,12,12,0.42);
+      --green: #1e8a5e; --red: #c0392b;
+    }
+    body {
+      background: var(--bg); color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px; line-height: 1.6;
+      padding: 48px 6vw 80px; max-width: 920px; margin: 0 auto;
+    }
+    h1 { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 6px; }
+    .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+
+    /* ── Server status banner ── */
+    .srv-banner {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; border-radius: 6px; margin-bottom: 32px;
+      font-size: 12px; font-weight: 600; letter-spacing: .08em;
+    }
+    .srv-banner .dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .srv-checking { background: rgba(12,12,12,0.05); color: var(--muted); }
+    .srv-checking .dot { background: #aaa; animation: pulse 1s infinite; }
+    .srv-ok  { background: rgba(30,138,94,0.1);  color: var(--green); }
+    .srv-ok .dot  { background: var(--green); }
+    .srv-err { background: rgba(192,57,43,0.08); color: var(--red); }
+    .srv-err .dot { background: var(--red); }
+    @keyframes pulse { 0%,100% { opacity:.4 } 50% { opacity:1 } }
+
+    /* ── Folder preview ── */
+    .folder-preview {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; border-radius: 5px;
+      background: var(--accent-light); border: 1px solid rgba(26,95,122,0.18);
+      font-size: 12px; color: var(--accent); margin-bottom: 32px;
+    }
+    .folder-preview .fp-path { font-weight: 600; font-family: monospace; }
+    #folderPreview { display: none; }
+
+    /* ── Section headings ── */
+    h2 {
+      font-size: 10px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
+      color: var(--accent); margin: 36px 0 16px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Form fields ── */
+    label {
+      display: block; font-size: 11px; font-weight: 600;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: var(--muted); margin: 18px 0 6px;
+    }
+    input[type=text], textarea {
+      width: 100%; padding: 10px 12px;
+      background: #fff; color: var(--fg);
+      border: 1px solid var(--border); border-radius: 5px;
+      font: inherit; font-size: 13.5px; outline: none;
+      transition: border-color .2s;
+    }
+    input[type=text]:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 80px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Layout picker ── */
+    .layout-picker { display: flex; gap: 8px; margin: 0 0 16px; }
+    .lp-btn {
+      flex: 1; padding: 10px 6px 8px; border: 1.5px solid var(--border); border-radius: 7px;
+      background: #fff; cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; gap: 7px; transition: border-color .2s, background .2s;
+    }
+    .lp-btn.active { border-color: var(--accent); background: var(--accent-light); }
+    .lp-icon { display: grid; gap: 3px; width: 52px; height: 34px; }
+    .lp-single { grid-template-columns: 1fr; }
+    .lp-duo    { grid-template-columns: 3fr 2fr; }
+    .lp-trio   { grid-template-columns: 3fr 2fr; grid-template-rows: 1fr 1fr; }
+    .lp-box { border-radius: 2px; background: rgba(12,12,12,0.13); }
+    .lp-box.lp-span2 { grid-row: span 2; }
+    .lp-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .lp-btn.active .lp-label { color: var(--accent); }
+
+    /* ── Duo variant sub-picker ── */
+    .duo-variants {
+      display: none; gap: 8px; margin: -6px 0 14px; flex-wrap: wrap;
+    }
+    .duo-variants.visible { display: flex; }
+    .dv-btn {
+      flex: 1; min-width: 120px; padding: 9px 8px 7px;
+      border: 1.5px solid var(--border); border-radius: 7px;
+      background: #fff; cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; gap: 6px; transition: border-color .2s, background .2s;
+    }
+    .dv-btn.active { border-color: var(--accent); background: var(--accent-light); }
+    .dv-icon { width: 60px; height: 30px; display: flex; gap: 2px; }
+    .dv-icon-equal .dv-box { flex: 1; background: rgba(12,12,12,0.13); border-radius: 2px; }
+    .dv-icon-feature .dv-box:first-child { flex: 2.3; background: rgba(12,12,12,0.13); border-radius: 2px; }
+    .dv-icon-feature .dv-box:last-child  { flex: 1;   background: rgba(12,12,12,0.13); border-radius: 2px; }
+    .dv-icon-diptych { justify-content: center; gap: 4px; align-items: center; }
+    .dv-icon-diptych .dv-box { width: 22px; height: 28px; background: rgba(12,12,12,0.13); border-radius: 2px; flex-shrink: 0; }
+    .dv-icon-hstack { flex-direction: column; gap: 2px; }
+    .dv-icon-hstack .dv-box { flex: 1; background: rgba(12,12,12,0.13); border-radius: 2px; width: 100%; }
+    .dv-label { font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .dv-btn.active .dv-label { color: var(--accent); }
+
+    /* ── Thumbnail layout preview ── */
+    /* aspect-ratio 4/3 at ~800px body ≈ 600px tall, giving the left trio slot
+       a ~480×600 shape (portrait) which matches what the real viewport produces */
+    .tl-wrap { width: 100%; aspect-ratio: 4/3; }
+    .tl-single { height: 100%; display: flex; }
+    .tl-single .uz { flex: 1; min-height: 0; }
+    /* duo variants */
+    .tl-duo         { display: grid; grid-template-columns: 60% 1fr; gap: 8px; height: 100%; align-items: start; }
+    .tl-duo .uz:nth-child(1) { height: 100%; }
+    .tl-duo .uz:nth-child(2) { height: 68%; margin-top: 10%; }
+    .tl-duo-equal   { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 100%; }
+    .tl-duo-feature { display: grid; grid-template-columns: 70% 1fr; gap: 8px; height: 100%; }
+    .tl-duo-diptych { display: flex; gap: 16px; height: 100%; align-items: center; justify-content: center; }
+    .tl-duo-diptych .uz { width: 44%; height: 90%; flex-shrink: 0; }
+    .tl-duo-hstack  { height: 100%; overflow: hidden; }
+    .tl-duo-hstack .uz { width: 100%; height: calc(50% - 4px) !important; }
+    .tl-duo-hstack .uz + .uz { margin-top: 8px; }
+    .tl-duo-equal .uz, .tl-duo-feature .uz,
+    .tl-duo-hstack .uz { height: 100%; }
+    .tl-trio { display: grid; grid-template-columns: 60% 1fr; grid-template-rows: 1fr 1fr; gap: 8px; height: 100%; }
+    .tl-trio .uz:nth-child(1) { grid-row: span 2; }
+
+    /* ── Upload zones ── */
+    .uz-gallery { display: flex; flex-direction: column; gap: 18px; margin-top: 4px; }
+    .uz-gallery-slot label { margin: 0 0 6px; }
+
+    .uz {
+      position: relative; border: 1.5px dashed var(--border); border-radius: 7px;
+      background: #fff; overflow: hidden; transition: border-color .2s, background .2s;
+      cursor: pointer; min-height: 130px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .uz.no-min { min-height: 0; }
+    .uz:hover, .uz.drag { border-color: var(--accent); background: var(--accent-light); }
+    .uz.loading { opacity: .6; pointer-events: none; }
+    .uz.has-file { border-style: solid; border-color: rgba(26,95,122,0.35); }
+
+    .uz-ratio {
+      font-size: 9px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+      color: rgba(12,12,12,0.28); margin-top: 2px;
+    }
+
+    .uz-input { display: none; }
+
+    .uz-prompt {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 20px 12px; text-align: center; pointer-events: none;
+    }
+    .uz-icon { font-size: 26px; opacity: .4; }
+    .uz-label { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .uz-sublabel { font-size: 10px; color: var(--muted); opacity: .7; }
+
+    .uz-preview {
+      width: 100%; height: 100%; position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+    }
+    .uz-img {
+      width: 100%; flex: 1; object-fit: cover; display: block; min-height: 0;
+    }
+    .uz-footer {
+      background: rgba(247,246,242,0.95); padding: 6px 10px;
+      display: flex; align-items: center; gap: 6px;
+      border-top: 1px solid var(--border);
+    }
+    .uz-path {
+      flex: 1; font-size: 10px; font-family: monospace; color: var(--accent);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .uz-remove {
+      flex-shrink: 0; background: none; border: none; cursor: pointer;
+      font-size: 16px; color: var(--muted); line-height: 1; padding: 0 2px;
+      transition: color .2s;
+    }
+    .uz-remove:hover { color: var(--red); }
+
+    /* Gallery slots — full-width at real aspect ratios */
+    .uz-gallery-slot { display: flex; flex-direction: column; }
+    .uz-gallery-slot .uz { width: 100%; min-height: 0; }
+
+    /* ── Paragraph rows ── */
+    .para-list { display: flex; flex-direction: column; gap: 10px; }
+    .para-row  { display: flex; gap: 8px; }
+    .para-row textarea { flex: 1; }
+    .remove-btn {
+      flex-shrink: 0; align-self: flex-start; margin-top: 2px;
+      background: none; border: 1px solid var(--border); border-radius: 4px;
+      padding: 8px 10px; cursor: pointer; color: var(--muted);
+      font-size: 15px; line-height: 1; transition: border-color .2s, color .2s;
+    }
+    .remove-btn:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── Add buttons ── */
+    .add-btn {
+      margin-top: 10px; width: 100%; background: none;
+      border: 1px dashed var(--border); border-radius: 5px;
+      padding: 9px 14px; cursor: pointer; font-size: 11px; font-weight: 700;
+      letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+      transition: border-color .2s, color .2s;
+    }
+    .add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Generate button ── */
+    .gen-btn {
+      margin-top: 44px; width: 100%; background: var(--accent); color: #fff;
+      border: none; padding: 14px 24px; border-radius: 5px; cursor: pointer;
+      font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+      transition: opacity .2s;
+    }
+    .gen-btn:hover { opacity: .85; }
+
+    /* ── Output ── */
+    #outputWrap { display: none; margin-top: 44px; }
+    .output-instructions {
+      background: #fff; border: 1px solid var(--border); border-radius: 5px;
+      padding: 16px 18px; margin-bottom: 14px; font-size: 13px; line-height: 1.8; color: var(--muted);
+    }
+    .output-instructions strong { color: var(--fg); }
+    .output-instructions code { font-family: monospace; background: rgba(0,0,0,.05); padding: 1px 5px; border-radius: 3px; }
+    #output {
+      width: 100%; background: #fff; border: 1px solid var(--border); border-radius: 5px;
+      padding: 16px; font-family: 'Menlo','Monaco','Courier New',monospace;
+      font-size: 11.5px; line-height: 1.75; color: #333; min-height: 200px; resize: vertical; outline: none;
+    }
+    .copy-btn {
+      margin-top: 10px; background: none; border: 1px solid var(--accent); border-radius: 5px;
+      padding: 9px 20px; cursor: pointer; font-size: 11px; font-weight: 700;
+      letter-spacing: .16em; text-transform: uppercase; color: var(--accent);
+      transition: background .2s, color .2s;
+    }
+    .copy-btn:hover { background: var(--accent); color: #fff; }
+    .copy-btn.copied { background: var(--green); border-color: var(--green); color: #fff; }
+
+    .steps {
+      margin-top: 24px; background: #fff; border: 1px solid var(--border);
+      border-radius: 5px; padding: 20px 24px;
+    }
+    .steps h3 {
+      font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 14px;
+    }
+    .steps ol { padding-left: 18px; }
+    .steps li { font-size: 13px; color: var(--muted); margin-bottom: 8px; line-height: 1.6; }
+    .steps li strong { color: var(--fg); }
+    .steps code { font-family: monospace; background: rgba(0,0,0,.05); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+    @media (max-width: 600px) {
+      body { padding: 32px 5vw 60px; }
+      .row { grid-template-columns: 1fr; }
+      .tl-wrap { aspect-ratio: 3/2; }
+      .layout-picker .lp-btn { padding: 8px 4px 6px; }
+      .lp-icon { width: 40px; height: 26px; }
+    }
+
+    /* ── Focal point ── */
+    .uz-focal-btn {
+      flex-shrink: 0; background: none; border: none; cursor: pointer;
+      font-size: 13px; color: var(--accent); line-height: 1; padding: 0 4px;
+      transition: opacity .2s; opacity: .75;
+    }
+    .uz-focal-btn:hover { opacity: 1; }
+    .focal-dot {
+      display: none; position: absolute; width: 10px; height: 10px;
+      border-radius: 50%; background: var(--accent); border: 2px solid #fff;
+      box-shadow: 0 0 0 1px var(--accent);
+      transform: translate(-50%, -50%); pointer-events: none; z-index: 5;
+    }
+    .uz.has-focal .focal-dot { display: block; }
+
+    .focal-modal {
+      position: fixed; inset: 0; background: rgba(12,12,12,0.88); z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0; opacity: 0; pointer-events: none; transition: opacity .25s;
+    }
+    .focal-modal.open { opacity: 1; pointer-events: all; }
+    .focal-modal-hd {
+      color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .22em;
+      text-transform: uppercase; margin-bottom: 8px;
+    }
+    .focal-modal-sub {
+      color: rgba(255,255,255,0.45); font-size: 12px; margin-bottom: 20px; text-align: center;
+    }
+    .focal-img-wrap {
+      position: relative; cursor: crosshair; user-select: none; display: inline-block;
+    }
+    .focal-img-wrap img {
+      display: block; max-width: 88vw; max-height: 62vh; object-fit: contain;
+    }
+    .focal-crosshair {
+      position: absolute; transform: translate(-50%, -50%); pointer-events: none;
+    }
+    .focal-crosshair::before, .focal-crosshair::after {
+      content: ''; position: absolute; background: rgba(255,255,255,0.9);
+    }
+    .focal-crosshair::before { width: 1px; height: 32px; left: 0; top: -16px; }
+    .focal-crosshair::after  { width: 32px; height: 1px; left: -16px; top: 0; }
+    .focal-ring {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.9);
+      background: rgba(26,95,122,0.45);
+      position: absolute; top: -10px; left: -10px;
+    }
+    .focal-btns {
+      display: flex; gap: 12px; margin-top: 20px;
+    }
+    .focal-save {
+      background: var(--accent); color: #fff; border: none; border-radius: 5px;
+      padding: 11px 28px; cursor: pointer; font-size: 11px; font-weight: 700;
+      letter-spacing: .18em; text-transform: uppercase; transition: opacity .2s;
+    }
+    .focal-save:hover { opacity: .85; }
+    .focal-cancel {
+      background: none; color: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 5px; padding: 11px 20px; cursor: pointer; font-size: 11px;
+      font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+      transition: border-color .2s;
+    }
+    .focal-cancel:hover { border-color: rgba(255,255,255,0.5); color: #fff; }
+    .focal-coords {
+      color: rgba(255,255,255,0.35); font-size: 11px; font-family: monospace;
+      margin-top: 10px; min-height: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>New Project Entry</h1>
+  <p class="subtitle">Fill in the fields, upload your photos, then paste the generated snippet into projects.js</p>
+
+  <!-- Server status -->
+  <div class="srv-banner srv-checking" id="srvBanner">
+    <div class="dot"></div>
+    <span id="srvMsg">Checking server…</span>
+  </div>
+
+  <!-- Folder preview -->
+  <div class="folder-preview" id="folderPreview">
+    <span>📁</span>
+    <span>Photos will be saved to: <span class="fp-path" id="fpPath">Projects / … / … /</span></span>
+  </div>
+
+  <!-- ─────────────── PROJECT DETAILS ─────────────── -->
+  <h2>Project Details</h2>
+
+  <div class="row">
+    <div>
+      <label>Unique ID <small style="font-weight:400;text-transform:none;letter-spacing:0">(no spaces)</small></label>
+      <input type="text" id="fId" placeholder="e.g. cairns-2026" spellcheck="false" oninput="onMetaChange()">
+      <p class="hint">Lowercase, hyphens OK. Used as the upload subfolder name.</p>
+    </div>
+    <div>
+      <label>Year</label>
+      <input type="text" id="fYear" placeholder="e.g. 2026" oninput="onMetaChange()">
+      <p class="hint">Shown on the timeline dot and used as the upload folder.</p>
+    </div>
+  </div>
+
+  <label>Year Tag <small style="font-weight:400;text-transform:none;letter-spacing:0">(shown on card)</small></label>
+  <input type="text" id="fYearTag" placeholder="e.g. 2026  or  2024 — 2026">
+
+  <div class="row">
+    <div>
+      <label>Title — Line 1</label>
+      <input type="text" id="fTitle1" placeholder="e.g. Cairns">
+    </div>
+    <div>
+      <label>Title — Line 2 <small style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</small></label>
+      <input type="text" id="fTitle2" placeholder="e.g. Convention">
+    </div>
+  </div>
+
+  <label>Category / Location</label>
+  <input type="text" id="fCat" placeholder="e.g. AV Production · Live Events · Australia">
+
+  <!-- ─────────────── CARD THUMBNAILS ─────────────── -->
+  <h2>Card Thumbnails</h2>
+  <p class="hint" style="margin-bottom:14px">Pick how many photos the card will show — the preview below shows the <strong>exact shape</strong> each slot will render at on the timeline.</p>
+
+  <div class="layout-picker" id="layoutPicker">
+    <button class="lp-btn" data-count="1" onclick="setLayout(1)">
+      <div class="lp-icon lp-single"><div class="lp-box"></div></div>
+      <span class="lp-label">1 photo</span>
+    </button>
+    <button class="lp-btn" data-count="2" onclick="setLayout(2)">
+      <div class="lp-icon lp-duo"><div class="lp-box"></div><div class="lp-box"></div></div>
+      <span class="lp-label">2 photos</span>
+    </button>
+    <button class="lp-btn active" data-count="3" onclick="setLayout(3)">
+      <div class="lp-icon lp-trio">
+        <div class="lp-box lp-span2"></div><div class="lp-box"></div><div class="lp-box"></div>
+      </div>
+      <span class="lp-label">3 photos</span>
+    </button>
+  </div>
+  <!-- 2-photo layout variant picker (visible only when 2 photos selected) -->
+  <div class="duo-variants" id="duoVariants">
+    <button class="dv-btn active" data-variant="lay-duo-equal" onclick="setDuoVariant('lay-duo-equal',this)">
+      <div class="dv-icon dv-icon-equal"><div class="dv-box"></div><div class="dv-box"></div></div>
+      <span class="dv-label">A — Equal</span>
+    </button>
+    <button class="dv-btn" data-variant="lay-duo-feature" onclick="setDuoVariant('lay-duo-feature',this)">
+      <div class="dv-icon dv-icon-feature"><div class="dv-box"></div><div class="dv-box"></div></div>
+      <span class="dv-label">B — Feature</span>
+    </button>
+    <button class="dv-btn" data-variant="lay-duo-diptych" onclick="setDuoVariant('lay-duo-diptych',this)">
+      <div class="dv-icon dv-icon-diptych"><div class="dv-box"></div><div class="dv-box"></div></div>
+      <span class="dv-label">C — Diptych</span>
+    </button>
+    <button class="dv-btn" data-variant="lay-duo-hstack" onclick="setDuoVariant('lay-duo-hstack',this)">
+      <div class="dv-icon dv-icon-hstack"><div class="dv-box"></div><div class="dv-box"></div></div>
+      <span class="dv-label">D — Stack</span>
+    </button>
+  </div>
+
+  <div class="tl-wrap" id="thumbLayoutWrap">
+    <!-- layout injected by JS -->
+  </div>
+
+  <!-- ─────────────── DESCRIPTION ─────────────── -->
+  <h2>Description Paragraphs</h2>
+  <p class="hint" style="margin-bottom:12px">One box per paragraph. Basic HTML allowed: <code style="font-family:monospace;background:rgba(0,0,0,.05);padding:1px 4px;border-radius:3px">&lt;strong&gt;bold&lt;/strong&gt;</code></p>
+
+  <div class="para-list" id="paraList">
+    <div class="para-row">
+      <textarea placeholder="First paragraph…"></textarea>
+      <button class="remove-btn" onclick="removePara(this)">×</button>
+    </div>
+  </div>
+  <button class="add-btn" onclick="addPara()">+ Add paragraph</button>
+
+  <!-- ─────────────── GALLERY ─────────────── -->
+  <h2>Detail Gallery</h2>
+  <p class="hint" style="margin-bottom:14px">Previews show the real crop ratio. Hero = 16:9 full-width, rest = 3:2 pairs.</p>
+
+  <div class="uz-gallery" id="galleryList">
+    <!-- rows built by JS -->
+  </div>
+  <div style="display:flex;gap:10px;margin-top:10px">
+    <button class="add-btn" style="margin-top:0" onclick="addGallerySlot()">+ Add photo</button>
+    <button class="add-btn" style="margin-top:0" onclick="addVideoSlot()">+ Add video URL</button>
+  </div>
+
+  <!-- ─────────────── GENERATE ─────────────── -->
+  <button class="gen-btn" onclick="generate()">Generate Entry →</button>
+
+  <!-- ─────────────── OUTPUT ─────────────── -->
+  <div id="outputWrap">
+    <h2>Generated Entry</h2>
+    <div class="output-instructions">
+      <strong>Copy the text below</strong>, open <strong>projects.js</strong>, and paste it
+      right after the line that says <code>↓  PASTE NEW ENTRIES HERE  ↓</code>. Save — done.
+    </div>
+    <textarea id="output" readonly spellcheck="false"></textarea>
+    <br>
+    <button class="copy-btn" id="copyBtn" onclick="copyOutput()">Copy to clipboard</button>
+
+    <div class="steps">
+      <h3>Next steps</h3>
+      <ol>
+        <li>Paste the copied text into <strong>projects.js</strong> just below the "PASTE NEW ENTRIES HERE" comment</li>
+        <li>Save <strong>projects.js</strong></li>
+        <li>Reload <code>http://localhost:8080</code> — your project appears automatically</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Focal point modal -->
+  <div class="focal-modal" id="focalModal">
+    <div class="focal-modal-hd">Set Focal Point</div>
+    <p class="focal-modal-sub">Click on the subject — this tells the browser where to crop the image</p>
+    <div class="focal-img-wrap" id="focalWrap">
+      <img id="focalModalImg" src="" alt="">
+      <div class="focal-crosshair" id="focalCH"><div class="focal-ring"></div></div>
+    </div>
+    <div class="focal-coords" id="focalCoords"></div>
+    <div class="focal-btns">
+      <button class="focal-save" id="focalSave">Confirm Focus</button>
+      <button class="focal-cancel" id="focalCancel">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const SERVER = 'http://localhost:8080';
+    let serverOk = false;
+
+    // ── Server check ────────────────────────────────────────────
+    async function checkServer() {
+      try {
+        await fetch(`${SERVER}/upload`, { method: 'OPTIONS', signal: AbortSignal.timeout(2500) });
+        serverOk = true;
+      } catch { serverOk = false; }
+
+      const banner = document.getElementById('srvBanner');
+      const msg    = document.getElementById('srvMsg');
+      banner.className = 'srv-banner ' + (serverOk ? 'srv-ok' : 'srv-err');
+      msg.textContent  = serverOk
+        ? 'Server running — drag photos onto the slots to upload'
+        : 'Server not running — start it by double-clicking "Start Server.command", then refresh this page';
+    }
+
+    // ── Folder preview ───────────────────────────────────────────
+    function onMetaChange() {
+      const year = document.getElementById('fYear').value.trim();
+      const id   = document.getElementById('fId').value.trim();
+      const wrap = document.getElementById('folderPreview');
+      const path = document.getElementById('fpPath');
+      if (year || id) {
+        wrap.style.display = 'flex';
+        path.textContent = `Projects / ${year || '…'} / ${id || '…'} /`;
+      } else {
+        wrap.style.display = 'none';
+      }
+    }
+
+    // ── Upload a file to the server ──────────────────────────────
+    async function uploadFile(file) {
+      const year = document.getElementById('fYear').value.trim();
+      const id   = document.getElementById('fId').value.trim();
+      if (!year || !id) {
+        alert('Fill in Year and Project ID first — they determine where your photos are saved.');
+        return null;
+      }
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res(e.target.result.split(',')[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+      const resp = await fetch(`${SERVER}/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year, projId: id, filename: file.name, data: b64 })
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error);
+      return data.path;
+    }
+
+    // ── Upload zone component ────────────────────────────────────
+    // ratio: CSS aspect-ratio string e.g. '16/9', '3/2' (optional)
+    function createUploadZone(label, ratio) {
+      const zone = document.createElement('div');
+      zone.className = 'uz' + (ratio ? ' no-min' : '');
+      if (ratio) zone.style.aspectRatio = ratio;
+      zone.innerHTML = `
+        <input type="file" accept="image/*" class="uz-input">
+        <div class="uz-prompt">
+          <div class="uz-icon">＋</div>
+          <div class="uz-label">${label}</div>
+          <div class="uz-sublabel">Drop or click</div>
+          <div class="uz-ratio"></div>
+        </div>
+        <div class="uz-preview" style="display:none;position:absolute;inset:0;flex-direction:column;">
+          <img class="uz-img" style="width:100%;flex:1;object-fit:cover;display:block;min-height:0;">
+          <div class="focal-dot"></div>
+          <div class="uz-footer">
+            <span class="uz-path"></span>
+            <button class="uz-focal-btn" type="button" title="Adjust focal point" style="display:none">⊕</button>
+            <button class="uz-remove" type="button" title="Remove">×</button>
+          </div>
+        </div>`;
+
+      const input      = zone.querySelector('.uz-input');
+      const prompt     = zone.querySelector('.uz-prompt');
+      const preview    = zone.querySelector('.uz-preview');
+      const img        = zone.querySelector('.uz-img');
+      const pathEl     = zone.querySelector('.uz-path');
+      const focalBtn   = zone.querySelector('.uz-focal-btn');
+      const focalDot   = zone.querySelector('.focal-dot');
+      const rmBtn      = zone.querySelector('.uz-remove');
+
+      async function handleFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        zone.classList.add('loading');
+        try {
+          const path = await uploadFile(file);
+          if (path) {
+            img.src = URL.createObjectURL(file);
+            pathEl.textContent = path;
+            zone.dataset.path = path;
+            // reset focal to center
+            delete zone.dataset.focalX;
+            delete zone.dataset.focalY;
+            zone.classList.remove('has-focal');
+            focalBtn.style.display = '';
+            prompt.style.display = 'none';
+            preview.style.display = 'flex';
+            zone.classList.add('has-file');
+          }
+        } catch (e) { alert('Upload failed: ' + e.message); }
+        zone.classList.remove('loading');
+      }
+
+      zone.addEventListener('click', () => { if (!zone.classList.contains('has-file')) input.click(); });
+      zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', ()  => zone.classList.remove('drag'));
+      zone.addEventListener('drop', e => {
+        e.preventDefault(); zone.classList.remove('drag');
+        handleFile(e.dataTransfer.files[0]);
+      });
+      input.addEventListener('change', () => handleFile(input.files[0]));
+
+      focalBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        openFocalModal(zone, img.src);
+      });
+
+      rmBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        img.src = ''; pathEl.textContent = '';
+        delete zone.dataset.path;
+        delete zone.dataset.focalX;
+        delete zone.dataset.focalY;
+        input.value = '';
+        preview.style.display = 'none';
+        prompt.style.display  = '';
+        focalBtn.style.display = 'none';
+        zone.classList.remove('has-file', 'has-focal');
+      });
+
+      // Helper to update the focal dot indicator position on preview
+      zone._updateFocalDot = function() {
+        const x = parseFloat(zone.dataset.focalX || 50);
+        const y = parseFloat(zone.dataset.focalY || 50);
+        focalDot.style.left = x + '%';
+        focalDot.style.top  = y + '%';
+      };
+
+      return zone;
+    }
+
+    // ── Focal point modal ────────────────────────────────────────
+    const focalModal    = document.getElementById('focalModal');
+    const focalWrap     = document.getElementById('focalWrap');
+    const focalModalImg = document.getElementById('focalModalImg');
+    const focalCH       = document.getElementById('focalCH');
+    const focalCoords   = document.getElementById('focalCoords');
+    const focalSave     = document.getElementById('focalSave');
+    const focalCancel   = document.getElementById('focalCancel');
+
+    let _focalZone = null;
+    let _focalX = 50, _focalY = 50;
+
+    function moveCrosshair(pct_x, pct_y) {
+      _focalX = Math.round(pct_x * 10) / 10;
+      _focalY = Math.round(pct_y * 10) / 10;
+      focalCH.style.left = _focalX + '%';
+      focalCH.style.top  = _focalY + '%';
+      focalCoords.textContent = `object-position: ${_focalX}% ${_focalY}%`;
+    }
+
+    function openFocalModal(zone, imgSrc) {
+      _focalZone = zone;
+      _focalX = parseFloat(zone.dataset.focalX || 50);
+      _focalY = parseFloat(zone.dataset.focalY || 50);
+      focalModalImg.src = imgSrc;
+      // wait for image to load so we know its dimensions
+      focalModalImg.onload = () => {
+        moveCrosshair(_focalX, _focalY);
+        focalModal.classList.add('open');
+      };
+      if (focalModalImg.complete) {
+        moveCrosshair(_focalX, _focalY);
+        focalModal.classList.add('open');
+      }
+    }
+
+    function closeFocalModal() { focalModal.classList.remove('open'); }
+
+    focalWrap.addEventListener('click', e => {
+      const r = focalModalImg.getBoundingClientRect();
+      const x = (e.clientX - r.left)  / r.width  * 100;
+      const y = (e.clientY - r.top)   / r.height * 100;
+      moveCrosshair(
+        Math.max(0, Math.min(100, x)),
+        Math.max(0, Math.min(100, y))
+      );
+    });
+
+    focalSave.addEventListener('click', () => {
+      if (_focalZone) {
+        _focalZone.dataset.focalX = _focalX;
+        _focalZone.dataset.focalY = _focalY;
+        _focalZone.classList.add('has-focal');
+        _focalZone._updateFocalDot();
+      }
+      closeFocalModal();
+    });
+    focalCancel.addEventListener('click', closeFocalModal);
+    focalModal.addEventListener('click', e => { if (e.target === focalModal) closeFocalModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFocalModal(); });
+
+    // ── Thumbnail layout system ───────────────────────────────────
+    // Descriptive labels per slot per layout — grid controls actual shape
+    const THUMB_RATIOS = {
+      1: [{ label: 'Landscape — fills full section width' }],
+      2: [{ label: 'Portrait — tall left column' },
+          { label: 'Portrait — offset right' }],
+      3: [{ label: 'Portrait — tall left column' },
+          { label: 'Square-ish — top right' },
+          { label: 'Square-ish — bottom right' }]
+    };
+
+    let currentLayout = 3;
+    let duoVariant    = 'lay-duo-equal'; // default for new entries
+    const thumbZones  = [
+      createUploadZone('Photo 1'),
+      createUploadZone('Photo 2'),
+      createUploadZone('Photo 3')
+    ];
+
+    function setLayout(count) {
+      currentLayout = count;
+      document.querySelectorAll('.lp-btn').forEach(b =>
+        b.classList.toggle('active', parseInt(b.dataset.count) === count));
+      // show/hide duo variant sub-picker
+      document.getElementById('duoVariants').classList.toggle('visible', count === 2);
+      applyThumbLayout();
+    }
+
+    function setDuoVariant(variant, btn) {
+      duoVariant = variant;
+      document.querySelectorAll('.dv-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyThumbLayout();
+    }
+
+    function applyThumbLayout() {
+      const wrap = document.getElementById('thumbLayoutWrap');
+      const count = currentLayout;
+      wrap.innerHTML = '';
+
+      const container = document.createElement('div');
+      const duoClass  = 'tl-' + duoVariant.replace('lay-', ''); // lay-duo-equal → tl-duo-equal
+      container.className = count === 1 ? 'tl-single' : count === 2 ? duoClass : 'tl-trio';
+
+      const ratios = THUMB_RATIOS[count];
+      for (let i = 0; i < count; i++) {
+        const z = thumbZones[i];
+        // Clear any previous aspect-ratio — let the grid control slot shape
+        z.style.aspectRatio = '';
+        z.classList.add('no-min');
+        const ratioEl = z.querySelector('.uz-ratio');
+        if (ratioEl) ratioEl.textContent = ratios[i].label;
+        container.appendChild(z);
+      }
+      wrap.appendChild(container);
+    }
+
+    applyThumbLayout(); // init with 3-photo layout
+
+    // ── Gallery list ─────────────────────────────────────────────
+    const galleryList = document.getElementById('galleryList');
+    const galleryZones = [];
+
+    function addGallerySlot() {
+      const idx    = galleryZones.length;
+      const isHero = idx === 0;
+      const ratio  = isHero ? '16/9' : '3/2';
+      const lbl    = isHero ? 'Hero — full-width  16:9' : `Photo ${idx + 1} — pair  3:2`;
+
+      const slot = document.createElement('div');
+      slot.className = 'uz-gallery-slot';
+
+      const slotLabel = document.createElement('label');
+      slotLabel.textContent = lbl;
+      slot.appendChild(slotLabel);
+
+      const zone = createUploadZone(isHero ? 'Hero photo' : `Gallery photo ${idx + 1}`, ratio);
+
+      // Remove button inside the slot
+      const rmRow = document.createElement('button');
+      rmRow.className = 'remove-btn';
+      rmRow.style.cssText = 'margin-top:6px;align-self:flex-start';
+      rmRow.innerHTML = '× Remove';
+      rmRow.style.fontSize = '10px';
+      rmRow.addEventListener('click', () => {
+        const i = galleryZones.indexOf(zone);
+        if (i > -1) galleryZones.splice(i, 1);
+        slot.remove();
+      });
+
+      slot.appendChild(zone);
+      slot.appendChild(rmRow);
+      galleryList.appendChild(slot);
+      galleryZones.push(zone);
+    }
+
+    addGallerySlot(); // hero
+    addGallerySlot(); // first pair
+
+    // ── Video URL slot ───────────────────────────────────────────
+    function addVideoSlot() {
+      const idx    = galleryZones.length;
+      const isHero = idx === 0;
+
+      const slot = document.createElement('div');
+      slot.className = 'uz-gallery-slot';
+
+      const slotLabel = document.createElement('label');
+      slotLabel.textContent = isHero ? 'Hero video — YouTube / Vimeo / .mp4 URL  (16:9)' : `Video ${idx + 1} — YouTube / Vimeo / .mp4 URL  (3:2)`;
+      slot.appendChild(slotLabel);
+
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:8px;align-items:center';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'https://youtube.com/watch?v=… or https://vimeo.com/…';
+      input.spellcheck = false;
+      input.style.flex = '1';
+
+      const rmBtn = document.createElement('button');
+      rmBtn.className = 'remove-btn';
+      rmBtn.innerHTML = '×';
+      rmBtn.style.marginTop = '0';
+      rmBtn.addEventListener('click', () => {
+        const i = galleryZones.indexOf(videoProxy);
+        if (i > -1) galleryZones.splice(i, 1);
+        slot.remove();
+      });
+
+      row.appendChild(input);
+      row.appendChild(rmBtn);
+      slot.appendChild(row);
+      galleryList.appendChild(slot);
+
+      // Use a proxy object so generate() can treat it like a zone
+      const videoProxy = { get dataset() { return { path: input.value.trim() || undefined }; } };
+      galleryZones.push(videoProxy);
+    }
+
+    // ── Paragraphs ───────────────────────────────────────────────
+    function addPara() {
+      const row = document.createElement('div');
+      row.className = 'para-row';
+      row.innerHTML = `<textarea placeholder="Next paragraph…"></textarea>
+                       <button class="remove-btn" onclick="removePara(this)">×</button>`;
+      document.getElementById('paraList').appendChild(row);
+    }
+    function removePara(btn) { btn.closest('.para-row').remove(); }
+
+    // ── Generate ─────────────────────────────────────────────────
+    function jsStr(s) { return "'" + String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + "'"; }
+
+    function generate() {
+      const id      = document.getElementById('fId').value.trim();
+      const year    = document.getElementById('fYear').value.trim();
+      const yearTag = document.getElementById('fYearTag').value.trim();
+      const title1  = document.getElementById('fTitle1').value.trim();
+      const title2  = document.getElementById('fTitle2').value.trim();
+      const cat     = document.getElementById('fCat').value.trim();
+
+      if (!id || !year || !yearTag || !title1 || !cat) {
+        alert('Fill in: ID, Year, Year Tag, Title Line 1, and Category.'); return;
+      }
+
+      const thumbZonesFilled   = thumbZones.slice(0, currentLayout).filter(z => z.dataset.path);
+      const galleryZonesFilled = galleryZones.filter(z => z.dataset.path);
+      const paraTexts          = [...document.querySelectorAll('#paraList textarea')].map(t => t.value.trim()).filter(Boolean);
+
+      if (!thumbZonesFilled.length)   { alert('Upload at least 1 thumbnail photo.');   return; }
+      if (!paraTexts.length)          { alert('Add at least 1 description paragraph.'); return; }
+      if (!galleryZonesFilled.length) { alert('Upload at least 1 gallery photo.');      return; }
+
+      // Build thumb entries — string if no focal set, object {src,pos} if focal customised
+      function zoneEntry(z) {
+        const src = z.dataset.path;
+        const fx = z.dataset.focalX, fy = z.dataset.focalY;
+        if (fx !== undefined && fy !== undefined && !(parseFloat(fx) === 50 && parseFloat(fy) === 50)) {
+          return `{ src: ${jsStr(src)}, pos: ${jsStr(fx + '% ' + fy + '%')} }`;
+        }
+        return jsStr(src);
+      }
+
+      const titleArr     = title2 ? `[${jsStr(title1)}, ${jsStr(title2)}]` : `[${jsStr(title1)}]`;
+      const thumbLines   = thumbZonesFilled.map(z => `      ${zoneEntry(z)},`).join('\n');
+      const paraLines    = paraTexts.map(s => `      ${jsStr(s)},`).join('\n');
+      const galleryLines = galleryZonesFilled.map(z => `      ${zoneEntry(z)},`).join('\n');
+
+      // Include thumbLayout only for 2-photo projects
+      const layoutLine   = (currentLayout === 2)
+        ? `\n    thumbLayout: ${jsStr(duoVariant)},` : '';
+
+      const out =
+`  {
+    id:      ${jsStr(id)},
+    year:    ${jsStr(year)},
+    yearTag: ${jsStr(yearTag)},
+    title:   ${titleArr},
+    cat:     ${jsStr(cat)},${layoutLine}
+    thumbs: [
+${thumbLines}
+    ],
+    text: [
+${paraLines}
+    ],
+    gallery: [
+${galleryLines}
+    ],
+  },`;
+
+      document.getElementById('output').value = out;
+      document.getElementById('outputWrap').style.display = 'block';
+      document.getElementById('copyBtn').textContent = 'Copy to clipboard';
+      document.getElementById('copyBtn').className = 'copy-btn';
+      document.getElementById('outputWrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function copyOutput() {
+      const ta = document.getElementById('output');
+      ta.select();
+      navigator.clipboard.writeText(ta.value).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = 'Copied ✓'; btn.className = 'copy-btn copied';
+        setTimeout(() => { btn.textContent = 'Copy to clipboard'; btn.className = 'copy-btn'; }, 2500);
+      }).catch(() => { ta.select(); document.execCommand('copy'); });
+    }
+
+    // ── Init ─────────────────────────────────────────────────────
+    checkServer();
+  </script>
+</body>
+</html>

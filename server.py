@@ -15,9 +15,35 @@ import socketserver
 import json
 import base64
 import os
+import subprocess
 import threading
 import webbrowser
 from pathlib import Path
+
+IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'}
+COMPRESS_TAG = 'portfolio-compressed'
+
+
+def compress_image(path: Path):
+    """Compress an image in-place and tag it so it won't be re-processed."""
+    try:
+        subprocess.run([
+            'convert', str(path),
+            '-auto-orient',
+            '-resize', '2000x2000>',
+            '-depth', '8',
+            '-quality', '82',
+            '-strip',
+            '-set', 'comment', COMPRESS_TAG,
+            '-define', 'jpeg:preserve-settings=false',
+            '+backup',
+            str(path),
+        ], check=True, capture_output=True)
+        print(f'  ✓ Compressed: {path.name}')
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f'  ⚠ Compression failed for {path.name}: {e.stderr.decode().strip()}')
+        return False
 
 PORT = 8080
 ROOT = Path(__file__).parent.resolve()
@@ -62,6 +88,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
             rel_path = dest.relative_to(ROOT).as_posix()
             print(f'  ✓ Saved: {rel_path}')
+
+            # Auto-compress images on upload
+            if dest.suffix in IMAGE_EXTS:
+                compress_image(dest)
+
             self._json(200, {'ok': True, 'path': rel_path})
 
         except Exception as exc:

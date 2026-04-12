@@ -33,11 +33,44 @@ const PROJECTS = [
   // ──────────────────────────────────────────────────────────────
   //  ↓  PASTE NEW ENTRIES HERE (newest at the top)  ↓
   // ──────────────────────────────────────────────────────────────
-   {
+      {
+    id:      'av-technician',
+    year:    '2023',
+    yearTag: '2023 - 2024',
+    title:   ['The QR code', 'That changed everything'],
+    cat:     'Audiovisual',
+    thumbs: [
+      'Projects/2023/av-technician/IMG_2675.JPEG',
+      'Projects/2023/av-technician/IMG_5663.JPEG',
+      'Projects/2023/av-technician/IMG_2280.JPEG',
+    ],
+    text: [
+      '"Back in Chile, while I was preparing the move, a friend from home — Hector — gave me solid advice about having a long term plan for staying in Australia. He suggested development, even offered to help pay for it. I applied for a scholarship instead and got it. Bootcamp style, so on top of everything else I was doing to prepare the move, I was going deep into coding at night. The timing was tight — I had about a month before I had to leave.',
+      'A couple of weeks after arriving in Australia I was doing what most of us do — sending applications and getting nowhere. The jetlag had me waking up at 3am craving pasta, so I restructured my mornings: 5am runs along the Esplanade to stay sane, then straight into classes. The bootcamp kept going, just from a different continent now — except the Saturday sessions ran 10am to 3pm back home, which landed at 11pm to 4am in Cairns. I think I made it to two or three of those before the library QR code changed my priorities entirely.',
+      'One morning at the library, working through my classes, I walked past a QR code that said "we are hiring." I thought — wouldn\'t be too bad, sorting books, quiet environment, sounds perfect. What I found on that website instead was a casual Audiovisual Technician position at the Cairns Convention Centre. My first thought was something along the lines of — they\'re not going to care about a sound engineering degree from Chile, but I\'ll give it a go anyway.',
+      'My live events experience back home was real but modest. Weddings, university welcome events, bands playing to a couple hundred people. The biggest was a pool party for around 1,000 — headlined by a Reggaeton singer who was apparently mildly famous. I had no idea who he was.',
+      'Surprisingly, I got the call for an interview. I was so excited I didn\'t want to mess it up. I then proceeded to walk into the wrong entrance entirely — straight into the Arena from City Terrace, stopped by security and redirected to the proper staff entrance.',
+      'My first shift was the 23rd of May, during the setup of Cannes in Cairns. Everything was new — the scale, the infrastructure, the technology. Dante networking, large format PA builds, LED walls, lighting consoles. None of my teachers had ever mentioned any of it. I knew enough to be useful but humble enough to know I had a lot to learn. I started reading manuals on my days off and keeping notes after every shift.',
+      'The language didn\'t make it easier. The Australian accent is its own thing — fast, full of slang, words cut in half. I always say it\'s the English version of Chilean Spanish. For a while I was demonstrating competence through actions more than words — staying back when everyone else left at 5, finishing what needed to be finished, keeping moving when others stopped to talk. Now that I\'m supervising I understand exactly how much that gets noticed.',
+      'My friends from the hostel were telling me constantly to go out, do road trips, enjoy the working holiday visa. I appreciated it. But I wasn\'t on holidays. I was here to stay. I am here to stay."',
+    ],
+    gallery: [
+      'Projects/2023/av-technician/IMG_5663.JPEG',
+      'Projects/2023/av-technician/IMG_4568.JPG',
+      'Projects/2023/av-technician/IMG_3178.JPEG',
+      { src: 'Projects/2023/av-technician/IMG_3891.JPEG', pos: '49.6% 68.3%' },
+      'Projects/2023/av-technician/IMG_4374.JPG',
+      'Projects/2023/av-technician/IMG_4588.JPG',
+      'Projects/2023/av-technician/IMG_5678.JPEG',
+      'Projects/2023/av-technician/IMG_4149.JPEG',
+      'Projects/2023/av-technician/IMG_5557.JPEG',
+    ],
+  },
+  {
     id:      'the-place-i-chose-to-belong',
     year:    '2023',
     yearTag: '2023 - Present',
-    title:   ['The place', 'I chose to belong'],
+    title:   ['Australia:', 'The place I chose to belong'],
     cat:     'Personal',
     thumbs: [
       'Projects/2023/a-country-worth-fighting-for/69-DSC02049-topaz-denoise-sharpen.jpeg',

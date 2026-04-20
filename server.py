@@ -38,7 +38,6 @@ def compress_image(path: Path):
             '-strip',
             '-set', 'comment', COMPRESS_TAG,
             '-define', 'jpeg:preserve-settings=false',
-            '+backup',
             str(path),
         ], check=True, capture_output=True)
         print(f'  ✓ Compressed: {path.name}')

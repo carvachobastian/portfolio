@@ -416,9 +416,6 @@
     .det-gallery-feat-group .fg-portrait  { grid-row: span 2; }
     .det-gallery-feat-group .fg-landscape { aspect-ratio: 3/2; }
 
-    /* Full-width gallery section (below text column) */
-    .det-gallery-full { grid-column: 1 / -1; }
-
     /* Video embeds in gallery */
     .det-gallery-video {
       position: relative; overflow: hidden; background: #000;
@@ -827,14 +824,9 @@
     document.addEventListener('click', e => {
       const img = e.target.closest('[data-lb]');
       if (!img) return;
-      // If inside the detail overlay, collect across all .det-gallery sections (inc. wrap)
-      let siblings;
-      if (img.closest('#detBody')) {
-        siblings = Array.from(detBody.querySelectorAll('.det-gallery [data-lb]'));
-      } else {
-        const container = img.closest('.det-gallery, .lay-single, .lay-duo, .lay-trio') || img.parentElement;
-        siblings = Array.from(container.querySelectorAll('[data-lb]'));
-      }
+      // Collect all [data-lb] imgs in the same parent container
+      const container = img.closest('.det-gallery, .lay-single, .lay-duo, .lay-trio') || img.parentElement;
+      const siblings  = Array.from(container.querySelectorAll('[data-lb]'));
       lbGallery = siblings.map(el => el.src);
       lbShow(siblings.indexOf(img));
       lb.classList.add('open');
@@ -880,39 +872,7 @@
 
       detOv.scrollTop = 0;
       detOv.classList.add('open');
-      requestAnimationFrame(() => requestAnimationFrame(() => splitGalleryAtTextEnd()));
     });
-
-    function splitGalleryAtTextEnd() {
-      const textEl    = detBody.querySelector('.det-text');
-      const galleryEl = detBody.querySelector('.det-gallery:not(.det-gallery-full)');
-      if (!textEl || !galleryEl) return;
-
-      // Remove any previous full-width section
-      const prev = detBody.querySelector('.det-gallery-full');
-      if (prev) prev.remove();
-
-      const textH    = textEl.offsetHeight;
-      const gallRect = galleryEl.getBoundingClientRect();
-      const items    = Array.from(galleryEl.children);
-
-      let splitEl = null;
-      for (const item of items) {
-        const itemTop = item.getBoundingClientRect().top - gallRect.top;
-        if (itemTop >= textH) { splitEl = item; break; }
-      }
-      if (!splitEl) return;
-
-      const fullGallery = document.createElement('div');
-      fullGallery.className = 'det-gallery det-gallery-full';
-      let cur = splitEl;
-      while (cur) {
-        const next = cur.nextElementSibling;
-        fullGallery.appendChild(cur);
-        cur = next;
-      }
-      detBody.appendChild(fullGallery);
-    }
 
     function closeDetail() { detOv.classList.remove('open'); }
     detClose.addEventListener('click', closeDetail);

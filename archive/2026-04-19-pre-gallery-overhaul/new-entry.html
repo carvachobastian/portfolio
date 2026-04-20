@@ -192,61 +192,6 @@
     .uz-gallery-slot { display: flex; flex-direction: column; }
     .uz-gallery-slot .uz { width: 100%; min-height: 0; }
 
-    /* ── Slot header (drag handle + label row) ── */
-    .slot-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .slot-header label { margin: 0; }
-    .drag-handle {
-      cursor: grab; color: var(--muted); opacity: .45; font-size: 15px;
-      padding: 2px 4px; border-radius: 3px; line-height: 1; flex-shrink: 0;
-      transition: opacity .15s, color .15s;
-    }
-    .drag-handle:hover { opacity: 1; color: var(--accent); }
-    .uz-gallery-slot { cursor: default; }
-    .uz-gallery-slot.drag-over { outline: 2px dashed var(--accent); border-radius: 7px; outline-offset: 3px; }
-
-    /* ── Featured group slot ── */
-    .uz-feat-group-slot {
-      border: 1.5px dashed rgba(26,95,122,0.35); border-radius: 7px;
-      padding: 12px; background: rgba(26,95,122,0.03);
-    }
-    .uz-feat-group-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;
-    }
-    .uz-feat-group-portrait { grid-row: span 2; display: flex; flex-direction: column; }
-    .uz-feat-group-portrait .uz { flex: 1; min-height: 0; }
-    .uz-feat-group-landscapes { display: flex; flex-direction: column; gap: 10px; }
-    .uz-feat-group-landscapes .uz { flex: 1; min-height: 0; aspect-ratio: 3/2; }
-
-    /* ── Gallery preview panel ── */
-    #galleryPreviewSection {
-      margin-top: 28px; border-top: 1px solid var(--border); padding-top: 20px;
-    }
-    #galleryPreviewSection > .preview-label {
-      font-size: 10px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
-      color: var(--accent); margin-bottom: 14px; display: block;
-    }
-    #galleryPreview {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-    }
-    .gp-item {
-      overflow: hidden; border-radius: 4px; background: rgba(12,12,12,.06);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .gp-item img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.85); display: block; }
-    .gp-item.wide      { grid-column: span 2; aspect-ratio: 16/9; }
-    .gp-item.landscape { aspect-ratio: 3/2; }
-    .gp-item.portrait  { aspect-ratio: 2/3; }
-    .gp-item-label {
-      font-size: 9px; font-weight: 700; letter-spacing: .12em;
-      text-transform: uppercase; color: rgba(12,12,12,.3);
-    }
-    .gp-feat-group {
-      grid-column: span 2;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-    }
-    .gp-feat-group .gp-item.portrait  { grid-row: span 2; aspect-ratio: unset; }
-    .gp-feat-group .gp-item.landscape { aspect-ratio: 3/2; }
-
     /* Portrait toggle */
     .portrait-toggle {
       display: inline-flex; align-items: center; gap: 6px;
@@ -511,22 +456,14 @@
 
   <!-- ─────────────── GALLERY ─────────────── -->
   <h2>Detail Gallery</h2>
-  <p class="hint" style="margin-bottom:14px">Hero = 16:9 full-width. Drag ⠿⠿ handles to reorder. Use "Featured Group" for portrait + 2 landscape side-by-side.</p>
+  <p class="hint" style="margin-bottom:14px">Previews show the real crop ratio. Hero = 16:9 full-width, rest = 3:2 pairs.</p>
 
   <div class="uz-gallery" id="galleryList">
     <!-- rows built by JS -->
   </div>
-  <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+  <div style="display:flex;gap:10px;margin-top:10px">
     <button class="add-btn" style="margin-top:0" onclick="addGallerySlot()">+ Add photo</button>
-    <button class="add-btn" style="margin-top:0" onclick="addFeatGroupSlot()">+ Add featured group</button>
     <button class="add-btn" style="margin-top:0" onclick="addVideoSlot()">+ Add video URL</button>
-    <button class="add-btn" style="margin-top:0" onclick="sortByOrientation()">⇅ Sort by orientation</button>
-  </div>
-
-  <!-- Gallery preview -->
-  <div id="galleryPreviewSection">
-    <span class="preview-label">Gallery Preview</span>
-    <div id="galleryPreview"></div>
   </div>
 
   <!-- ─────────────── GENERATE ─────────────── -->
@@ -774,7 +711,6 @@
         _focalZone.dataset.focalY = _focalY;
         _focalZone.classList.add('has-focal');
         _focalZone._updateFocalDot();
-        updateGalleryPreview();
       }
       closeFocalModal();
     });
@@ -849,24 +785,14 @@
       const idx    = galleryZones.length;
       const isHero = idx === 0;
       const ratio  = isHero ? '16/9' : '3/2';
+      const lbl    = isHero ? 'Hero — full-width  16:9' : `Photo ${idx + 1} — pair  3:2`;
 
       const slot = document.createElement('div');
       slot.className = 'uz-gallery-slot';
 
-      // Slot header: drag handle + label
-      const header = document.createElement('div');
-      header.className = 'slot-header';
-      const handle = document.createElement('span');
-      handle.className = 'drag-handle';
-      handle.textContent = '⠿⠿';
-      handle.title = 'Drag to reorder';
-      handle.addEventListener('mousedown', () => slot.draggable = true);
       const slotLabel = document.createElement('label');
-      slotLabel.style.margin = '0';
-      slotLabel.textContent = isHero ? 'Hero — full-width  16:9' : `Photo ${idx + 1} — pair  3:2`;
-      header.appendChild(handle);
-      header.appendChild(slotLabel);
-      slot.appendChild(header);
+      slotLabel.textContent = lbl;
+      slot.appendChild(slotLabel);
 
       const zone = createUploadZone(isHero ? 'Hero photo' : `Gallery photo ${idx + 1}`, ratio);
 
@@ -883,42 +809,30 @@
           slotLabel.textContent = isPortrait
             ? `Photo ${idx + 1} — portrait  2:3`
             : `Photo ${idx + 1} — pair  3:2`;
-          updateGalleryPreview();
         });
         slot.appendChild(portraitBtn);
       }
 
-      // Remove button
+      // Remove button inside the slot
       const rmRow = document.createElement('button');
       rmRow.className = 'remove-btn';
-      rmRow.style.cssText = 'margin-top:6px;align-self:flex-start;font-size:10px';
+      rmRow.style.cssText = 'margin-top:6px;align-self:flex-start';
       rmRow.innerHTML = '× Remove';
+      rmRow.style.fontSize = '10px';
       rmRow.addEventListener('click', () => {
         const i = galleryZones.indexOf(zone);
         if (i > -1) galleryZones.splice(i, 1);
         slot.remove();
-        updateGalleryPreview();
       });
 
       slot.appendChild(zone);
       slot.appendChild(rmRow);
-
-      // Store bidirectional slot↔zone refs
-      zone._slot = slot;
-      slot._zone = zone;
-
       galleryList.appendChild(slot);
       galleryZones.push(zone);
-      addDragHandlers(slot);
-
-      // Watch for image uploads to update preview
-      new MutationObserver(() => updateGalleryPreview())
-        .observe(zone, { attributes: true, attributeFilter: ['data-path', 'data-focal-x', 'data-focal-y'] });
     }
 
     addGallerySlot(); // hero
     addGallerySlot(); // first pair
-    updateGalleryPreview();
 
     // ── Video URL slot ───────────────────────────────────────────
     function addVideoSlot() {
@@ -928,22 +842,9 @@
       const slot = document.createElement('div');
       slot.className = 'uz-gallery-slot';
 
-      // Slot header: drag handle + label
-      const header = document.createElement('div');
-      header.className = 'slot-header';
-      const handle = document.createElement('span');
-      handle.className = 'drag-handle';
-      handle.textContent = '⠿⠿';
-      handle.title = 'Drag to reorder';
-      handle.addEventListener('mousedown', () => slot.draggable = true);
       const slotLabel = document.createElement('label');
-      slotLabel.style.margin = '0';
-      slotLabel.textContent = isHero
-        ? 'Hero video — YouTube / Vimeo / .mp4 URL  (16:9)'
-        : `Video ${idx + 1} — YouTube / Vimeo / .mp4 URL  (3:2)`;
-      header.appendChild(handle);
-      header.appendChild(slotLabel);
-      slot.appendChild(header);
+      slotLabel.textContent = isHero ? 'Hero video — YouTube / Vimeo / .mp4 URL  (16:9)' : `Video ${idx + 1} — YouTube / Vimeo / .mp4 URL  (3:2)`;
+      slot.appendChild(slotLabel);
 
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;gap:8px;align-items:center';
@@ -953,7 +854,6 @@
       input.placeholder = 'https://youtube.com/watch?v=… or https://vimeo.com/…';
       input.spellcheck = false;
       input.style.flex = '1';
-      input.addEventListener('input', updateGalleryPreview);
 
       const rmBtn = document.createElement('button');
       rmBtn.className = 'remove-btn';
@@ -963,24 +863,16 @@
         const i = galleryZones.indexOf(videoProxy);
         if (i > -1) galleryZones.splice(i, 1);
         slot.remove();
-        updateGalleryPreview();
       });
 
       row.appendChild(input);
       row.appendChild(rmBtn);
       slot.appendChild(row);
-
-      const videoProxy = {
-        _isVideo: true,
-        _slot: slot,
-        get dataset() { return { path: input.value.trim() || undefined, portrait: undefined }; }
-      };
-      slot._zone = videoProxy;
-
       galleryList.appendChild(slot);
+
+      // Use a proxy object so generate() can treat it like a zone
+      const videoProxy = { get dataset() { return { path: input.value.trim() || undefined }; } };
       galleryZones.push(videoProxy);
-      addDragHandlers(slot);
-      updateGalleryPreview();
     }
 
     // ── Paragraphs ───────────────────────────────────────────────
@@ -1016,25 +908,8 @@
       if (!paraTexts.length)          { alert('Add at least 1 description paragraph.'); return; }
       if (!galleryZonesFilled.length) { alert('Upload at least 1 gallery photo.');      return; }
 
-      // Build gallery entries
+      // Build thumb entries — string if no focal set, object {src,pos,portrait?} if customised
       function zoneEntry(z) {
-        // Featured group: portrait + 2 landscape
-        if (z._isGroup) {
-          const items = z._zones.map(sz => {
-            const src      = sz.dataset.path;
-            const fx       = sz.dataset.focalX, fy = sz.dataset.focalY;
-            const portrait = sz.dataset.portrait === 'true';
-            const hasFocal = fx !== undefined && fy !== undefined &&
-                             !(parseFloat(fx) === 50 && parseFloat(fy) === 50);
-            let obj = `{ src: ${jsStr(src)}`;
-            if (hasFocal) obj += `, pos: ${jsStr(fx + '% ' + fy + '%')}`;
-            if (portrait) obj += `, portrait: true`;
-            obj += ` }`;
-            return obj;
-          }).join(`,\n        `);
-          return `{ layout: 'feat-group', items: [\n        ${items},\n      ] }`;
-        }
-        // Standard image or video
         const src      = z.dataset.path;
         const fx       = z.dataset.focalX, fy = z.dataset.focalY;
         const portrait = z.dataset.portrait === 'true';
@@ -1092,212 +967,6 @@ ${galleryLines}
         btn.textContent = 'Copied ✓'; btn.className = 'copy-btn copied';
         setTimeout(() => { btn.textContent = 'Copy to clipboard'; btn.className = 'copy-btn'; }, 2500);
       }).catch(() => { ta.select(); document.execCommand('copy'); });
-    }
-
-    // ── Drag-and-drop reordering ─────────────────────────────────────
-    let _dragSlot = null;
-
-    function addDragHandlers(slot) {
-      slot.addEventListener('dragstart', e => {
-        if (!slot.draggable) { e.preventDefault(); return; }
-        _dragSlot = slot;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('application/gallery-slot', '1');
-        requestAnimationFrame(() => slot.style.opacity = '0.4');
-      });
-
-      slot.addEventListener('dragend', () => {
-        slot.draggable = false;
-        slot.style.opacity = '';
-        _dragSlot = null;
-        document.querySelectorAll('.uz-gallery-slot').forEach(s => s.classList.remove('drag-over'));
-      });
-
-      slot.addEventListener('dragenter', e => {
-        if (!e.dataTransfer.types.includes('application/gallery-slot')) return;
-        e.preventDefault();
-        if (slot !== _dragSlot) slot.classList.add('drag-over');
-      });
-
-      slot.addEventListener('dragleave', e => {
-        if (!slot.contains(e.relatedTarget)) slot.classList.remove('drag-over');
-      });
-
-      slot.addEventListener('dragover', e => {
-        if (!e.dataTransfer.types.includes('application/gallery-slot')) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      });
-
-      slot.addEventListener('drop', e => {
-        if (!e.dataTransfer.types.includes('application/gallery-slot')) return;
-        e.preventDefault(); e.stopPropagation();
-        slot.classList.remove('drag-over');
-        if (!_dragSlot || _dragSlot === slot) return;
-        const slots = Array.from(galleryList.children).filter(el => el.classList.contains('uz-gallery-slot'));
-        const srcIdx = slots.indexOf(_dragSlot);
-        const dstIdx = slots.indexOf(slot);
-        if (srcIdx === -1 || dstIdx === -1) return;
-        if (srcIdx < dstIdx) slot.after(_dragSlot); else slot.before(_dragSlot);
-        resyncZones();
-        updateGalleryPreview();
-      });
-    }
-
-    function resyncZones() {
-      const slots = Array.from(galleryList.children).filter(el => el.classList.contains('uz-gallery-slot'));
-      galleryZones.length = 0;
-      slots.forEach(s => { if (s._zone) galleryZones.push(s._zone); });
-    }
-
-    // ── Sort gallery by orientation ──────────────────────────────────
-    function sortByOrientation() {
-      if (galleryZones.length < 2) return;
-      const hero      = galleryZones[0];
-      const rest      = galleryZones.slice(1);
-      const landscapes = rest.filter(z => !z._isGroup && !z._isVideo && z.dataset.portrait !== 'true');
-      const portraits  = rest.filter(z => !z._isGroup && !z._isVideo && z.dataset.portrait === 'true');
-      const groups     = rest.filter(z => z._isGroup);
-      const videos     = rest.filter(z => z._isVideo);
-      const sorted = [hero, ...landscapes, ...groups, ...portraits, ...videos];
-      sorted.forEach(z => { if (z._slot) galleryList.appendChild(z._slot); });
-      resyncZones();
-      updateGalleryPreview();
-    }
-
-    // ── Featured group slot (portrait + 2 landscape) ─────────────────
-    function addFeatGroupSlot() {
-      const slot = document.createElement('div');
-      slot.className = 'uz-gallery-slot uz-feat-group-slot';
-
-      // Header with drag handle
-      const header = document.createElement('div');
-      header.className = 'slot-header';
-      const handle = document.createElement('span');
-      handle.className = 'drag-handle';
-      handle.textContent = '⠿⠿';
-      handle.title = 'Drag to reorder';
-      handle.addEventListener('mousedown', () => slot.draggable = true);
-      const lbl = document.createElement('label');
-      lbl.style.margin = '0';
-      lbl.textContent = 'Featured Group — Portrait + 2 Landscape';
-      header.appendChild(handle);
-      header.appendChild(lbl);
-      slot.appendChild(header);
-
-      // Grid
-      const grid = document.createElement('div');
-      grid.className = 'uz-feat-group-grid';
-
-      const portraitWrap = document.createElement('div');
-      portraitWrap.className = 'uz-feat-group-portrait';
-      const portraitZone = createUploadZone('Portrait', null);
-      portraitZone.dataset.portrait = 'true';
-      portraitWrap.appendChild(portraitZone);
-
-      const landWrap = document.createElement('div');
-      landWrap.className = 'uz-feat-group-landscapes';
-      const land1 = createUploadZone('Landscape 1', null);
-      const land2 = createUploadZone('Landscape 2', null);
-      landWrap.appendChild(land1);
-      landWrap.appendChild(land2);
-
-      grid.appendChild(portraitWrap);
-      grid.appendChild(landWrap);
-      slot.appendChild(grid);
-
-      // Remove button
-      const rmBtn = document.createElement('button');
-      rmBtn.className = 'remove-btn';
-      rmBtn.style.cssText = 'margin-top:8px;align-self:flex-start;font-size:10px';
-      rmBtn.innerHTML = '× Remove group';
-      rmBtn.addEventListener('click', () => {
-        const i = galleryZones.indexOf(groupProxy);
-        if (i > -1) galleryZones.splice(i, 1);
-        slot.remove();
-        updateGalleryPreview();
-      });
-      slot.appendChild(rmBtn);
-
-      // Group proxy — dataset.path truthy only when all 3 sub-zones filled
-      const groupProxy = {
-        _isGroup: true,
-        _slot: slot,
-        _zones: [portraitZone, land1, land2],
-        get dataset() {
-          const allFilled = [portraitZone, land1, land2].every(z => z.dataset.path);
-          return { path: allFilled ? 'group' : undefined, portrait: undefined };
-        }
-      };
-
-      slot._zone = groupProxy;
-      galleryList.appendChild(slot);
-      galleryZones.push(groupProxy);
-      addDragHandlers(slot);
-
-      // Update preview when any sub-zone gets an image
-      [portraitZone, land1, land2].forEach(z => {
-        new MutationObserver(() => updateGalleryPreview())
-          .observe(z, { attributes: true, attributeFilter: ['data-path', 'data-focal-x', 'data-focal-y'] });
-      });
-
-      updateGalleryPreview();
-    }
-
-    // ── Gallery preview panel ────────────────────────────────────────
-    function updateGalleryPreview() {
-      const preview = document.getElementById('galleryPreview');
-      if (!preview) return;
-      preview.innerHTML = '';
-
-      galleryZones.forEach((zone, i) => {
-        if (zone._isVideo) {
-          const item = document.createElement('div');
-          item.className = 'gp-item landscape';
-          item.innerHTML = '<span class="gp-item-label">VIDEO</span>';
-          preview.appendChild(item);
-          return;
-        }
-
-        if (zone._isGroup) {
-          const groupEl = document.createElement('div');
-          groupEl.className = 'gp-feat-group';
-          zone._zones.forEach((sz, j) => {
-            const item = document.createElement('div');
-            item.className = j === 0 ? 'gp-item portrait' : 'gp-item landscape';
-            const imgEl = sz.querySelector && sz.querySelector('.uz-img');
-            if (imgEl && imgEl.src && imgEl.src !== window.location.href && sz.dataset.path) {
-              const img = document.createElement('img');
-              img.src = imgEl.src;
-              const fx = sz.dataset.focalX, fy = sz.dataset.focalY;
-              if (fx && fy) img.style.objectPosition = `${fx}% ${fy}%`;
-              item.appendChild(img);
-            } else {
-              item.innerHTML = `<span class="gp-item-label">${j === 0 ? 'PORTRAIT' : 'LANDSCAPE'}</span>`;
-            }
-            groupEl.appendChild(item);
-          });
-          preview.appendChild(groupEl);
-          return;
-        }
-
-        const isHero    = i === 0;
-        const isPortrait = zone.dataset.portrait === 'true';
-        const item = document.createElement('div');
-        item.className = isHero ? 'gp-item wide' : isPortrait ? 'gp-item portrait' : 'gp-item landscape';
-
-        const imgEl = zone.querySelector && zone.querySelector('.uz-img');
-        if (imgEl && imgEl.src && imgEl.src !== window.location.href && zone.dataset.path) {
-          const img = document.createElement('img');
-          img.src = imgEl.src;
-          const fx = zone.dataset.focalX, fy = zone.dataset.focalY;
-          if (fx && fy) img.style.objectPosition = `${fx}% ${fy}%`;
-          item.appendChild(img);
-        } else {
-          item.innerHTML = `<span class="gp-item-label">${isHero ? 'HERO' : isPortrait ? 'PORTRAIT' : 'LANDSCAPE'}</span>`;
-        }
-        preview.appendChild(item);
-      });
     }
 
     // ── Preview aspect ratio — mirrors actual img-col proportions ────

@@ -15,6 +15,7 @@ import socketserver
 import json
 import base64
 import os
+import shutil
 import subprocess
 import threading
 import webbrowser
@@ -26,9 +27,10 @@ COMPRESS_TAG = 'portfolio-compressed'
 
 def compress_image(path: Path):
     """Compress an image in-place and tag it so it won't be re-processed."""
+    convert_bin = shutil.which('convert') or '/opt/homebrew/bin/convert'
     try:
         subprocess.run([
-            'convert', str(path),
+            convert_bin, str(path),
             '-auto-orient',
             '-resize', '2000x2000>',
             '-depth', '8',
@@ -113,6 +115,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self._cors_headers()
         self.end_headers()
         self.wfile.write(body)
+
+    def end_headers(self):
+        # Disable caching for HTML and JS so edits always show immediately
+        if self.path.split('?')[0].endswith(('.html', '.js')):
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
+        super().end_headers()
 
     def log_message(self, fmt, *args):
         pass  # keep console clean — only upload events are printed

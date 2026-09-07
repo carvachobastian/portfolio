@@ -8,6 +8,9 @@ Run this once, then keep the window open while you work.
 Start it by double-clicking  "Start Server.command"
 or run:  python3 server.py
 Then open:  http://localhost:8080
+
+Listens on 127.0.0.1 only. The upload endpoint is unauthenticated,
+so it must never be exposed to a network.
 """
 
 import http.server
@@ -84,7 +87,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             folder = ROOT / 'Projects' / safe(year) / safe(proj_id)
             folder.mkdir(parents=True, exist_ok=True)
 
-            dest = folder / filename
+            # Reject any path component in the filename: only a bare name is allowed.
+            filename = os.path.basename(filename).lstrip('.')
+            filename = ''.join(c for c in filename if c.isalnum() or c in ' -_().')
+            if not filename:
+                raise ValueError('filename is not a usable file name')
+
+            dest = (folder / filename).resolve()
+            if not str(dest).startswith(str((ROOT / 'Projects').resolve()) + os.sep):
+                raise ValueError('refusing to write outside Projects/')
+
             dest.write_bytes(base64.b64decode(data_b64))
 
             rel_path = dest.relative_to(ROOT).as_posix()
@@ -141,7 +153,7 @@ print( '  └──────────────────────�
 threading.Thread(target=open_browser, daemon=True).start()
 
 socketserver.TCPServer.allow_reuse_address = True
-with socketserver.TCPServer(('', PORT), Handler) as httpd:
+with socketserver.TCPServer(('127.0.0.1', PORT), Handler) as httpd:
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

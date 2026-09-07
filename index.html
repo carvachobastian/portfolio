@@ -652,7 +652,7 @@
         .map(t => {
           const { src, pos } = imgEntry(t);
           const style = pos ? ` style="object-position:${esc(pos)}"` : '';
-          return `<img src="${esc(src)}" alt="${proj.title.map(esc).join(' ')}" data-lb${style}>`;
+          return `<img src="${esc(src)}" alt="${proj.title.map(esc).join(' ')}" data-lb loading="lazy" decoding="async"${style}>`;
         })
         .join('');
 

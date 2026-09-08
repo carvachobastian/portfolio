@@ -445,31 +445,25 @@
     .beat.sz-small .beat-frame { aspect-ratio: 1/1; }
     .beat.right .beat-frame { order: 2; }
     .beat.right .beat-say   { order: 1; text-align: right; }
+    /* Plate position and image reveal are set inline by the scroll handler, so
+       they interpolate with the thread rather than switching on a class. The
+       values here are only the resting state for no-JS and reduced motion. */
     .beat-frame {
       margin: 0; background: var(--bg); overflow: hidden; line-height: 0;
       box-shadow: 0 0 0 1px var(--divider) inset; cursor: pointer;
-      transform: translate(var(--fx, 0px), 30px) scale(.965);
-      transition: transform 1250ms cubic-bezier(.19,.78,.22,1);
+      will-change: transform;
     }
-    .beat.left  .beat-frame { --fx: -26px; }
-    .beat.right .beat-frame { --fx: 26px; }
-    .beat.lit   .beat-frame { transform: translate(0,0) scale(1); }
     .beat-frame img {
       width: 100%; height: 100%; object-fit: cover; display: block;
-      opacity: .16; filter: grayscale(1) contrast(.85);
-      transition: opacity 950ms cubic-bezier(.4,0,.2,1),
-                  filter  950ms cubic-bezier(.4,0,.2,1);
     }
-    .beat.lit .beat-frame img { opacity: 1; filter: grayscale(0) contrast(1); }
     .beat-say .beat-n {
       display: block; margin-bottom: 10px; font-size: 10px; letter-spacing: .3em;
       text-transform: uppercase; color: var(--accent);
     }
     .beat-say p {
       margin: 0; max-width: 34ch; font-size: 14px; line-height: 2.0;
-      color: var(--muted); opacity: .55; transition: opacity 800ms ease;
+      color: var(--muted);
     }
-    .beat.lit .beat-say p { opacity: 1; }
     .beat.right .beat-say p { margin-left: auto; }
     @media (max-width: 900px) {
       .beat, .beat.sz-wide, .beat.sz-mid, .beat.sz-tall, .beat.sz-small {
@@ -481,8 +475,8 @@
       .det-thread-svg { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .beat-frame, .beat-frame img, .beat-say p { transition: none; }
       .beat-frame { transform: none !important; }
+      .beat-frame img { opacity: 1 !important; filter: none !important; }
     }
 
     .det-gallery-full { grid-column: 1 / -1; }
@@ -959,18 +953,24 @@
     });
 
     /* ── Story thread ────────────────────────────────────────────────────────
-       Pairs each gallery image with the paragraph at the same index. Anchors
-       come from layout offsets, not getBoundingClientRect, because the plates
-       are transformed while they float in and would otherwise drag the line
-       along with them. */
+       Pairs each gallery image with the paragraph at the same index, then ties
+       the drawing of the line to scroll position rather than to a timer. A
+       reveal horizon sits partway down the viewport; whatever the thread has
+       passed is drawn, and each plate settles as the line reaches it.
+
+       Anchors come from layout offsets, not getBoundingClientRect, because the
+       plates are transformed and would otherwise drag their own anchors along.
+       Plate transform and image reveal are written inline here so they
+       interpolate with the line instead of switching on a class. */
     const THREAD_SIZES  = ['sz-wide', 'sz-tall', 'sz-mid', 'sz-small'];
     const THREAD_CURVES = {
       taut:     { t: 0.26, over: 0,   w: 1.1 },
       sweeping: { t: 0.58, over: 0,   w: 1.5 },
       meander:  { t: 0.92, over: 0.3, w: 1.5 }
     };
-    const THREAD_MS = 3000;
-    let threadTimers = [];
+    const THREAD_HORIZON = 0.72;   /* reveal line, as a fraction of viewport height */
+    const THREAD_LEAD    = 0.9;    /* plates finish arriving just before the line does */
+    let threadGeom = null, threadProj = null, threadTicking = false;
 
     function buildThreadHTML(proj) {
       const shots = proj.gallery || [];
@@ -981,8 +981,7 @@
         const say   = paras[i] ? `<p>${paras[i]}</p>` : '';
         const n     = String(i + 1).padStart(2, '0');
 
-        /* A gallery item is an image, a video, or a featured group. The plate
-           takes whichever it is; a group shows its first frame. */
+        /* A gallery item is an image, a video, or a featured group. */
         let inner;
         if (item && item.layout === 'feat-group' && Array.isArray(item.items)) {
           const { src, pos } = imgEntry(item.items[0]);
@@ -1023,44 +1022,15 @@
       return { x, y, w: el.offsetWidth, h: el.offsetHeight };
     }
 
-    /* The detail overlay animates open, so for the first frames the thread
-       container has no usable width and any path measured then is garbage.
-       Wait for real layout instead of guessing a frame count, and redraw on
-       resize so the line keeps meeting the plates. */
-    let threadProj = null;
-    function drawThreadWhenReady(proj, tries) {
-      threadProj = proj;
+    /* Measure the path and remember where each plate sits along it. */
+    function buildThreadGeom(proj) {
       const wrap = detBody.querySelector('.det-thread');
-      const n = tries || 0;
-      if (!wrap || wrap.offsetWidth < 200 || wrap.offsetHeight < 200) {
-        if (n < 60) { requestAnimationFrame(() => drawThreadWhenReady(proj, n + 1)); }
-        return;
-      }
-      drawThread(proj);
-    }
-
-    let threadResizeTimer = null;
-    window.addEventListener('resize', () => {
-      if (!threadProj || !detBody.querySelector('.det-thread')) return;
-      clearTimeout(threadResizeTimer);
-      threadResizeTimer = setTimeout(() => {
-        const path = detBody.querySelector('.det-thread-path');
-        drawThread(threadProj);
-        if (path) { path.style.transition = 'none'; path.style.strokeDasharray = 'none'; path.style.strokeDashoffset = '0'; }
-        detBody.querySelectorAll('.beat').forEach(b => b.classList.add('lit'));
-        detBody.querySelectorAll('.det-thread-node').forEach(c => { c.style.opacity = '1'; });
-      }, 160);
-    });
-
-    function drawThread(proj) {
-      threadTimers.forEach(clearTimeout); threadTimers = [];
-      const wrap = detBody.querySelector('.det-thread');
-      if (!wrap) return;
+      if (!wrap) return null;
       const svg   = wrap.querySelector('.det-thread-svg');
       const path  = wrap.querySelector('.det-thread-path');
       const nodes = wrap.querySelector('.det-thread-nodes');
       const beats = Array.from(wrap.querySelectorAll('.beat'));
-      if (beats.length < 2) { beats.forEach(b => b.classList.add('lit')); return; }
+      if (beats.length < 2) return null;
 
       const cfg = THREAD_CURVES[proj.thread] || THREAD_CURVES.sweeping;
       const pts = beats.map(b => {
@@ -1088,43 +1058,121 @@
       const at = [0]; let d = parts[0];
       for (let i = 1; i < parts.length; i++) { d += ' ' + parts[i]; probe.setAttribute('d', d); at.push(probe.getTotalLength()); }
       svg.removeChild(probe);
-      const len = at[at.length - 1];
 
       nodes.innerHTML = '';
       dots.forEach(([cx, cy]) => {
         const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', '3.5');
-        c.setAttribute('class', 'det-thread-node');
-        c.style.opacity = '0'; c.style.transition = 'opacity 500ms ease';
+        c.setAttribute('class', 'det-thread-node'); c.style.opacity = '0';
         nodes.appendChild(c);
       });
-      const circles = Array.from(nodes.children);
 
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        path.style.strokeDasharray = 'none'; path.style.strokeDashoffset = '0';
-        beats.forEach(b => b.classList.add('lit'));
-        circles.forEach(c => { c.style.opacity = '1'; });
-        return;
-      }
-
-      beats.forEach(b => b.classList.remove('lit'));
       path.style.transition = 'none';
-      path.style.strokeDasharray = len;
-      path.style.strokeDashoffset = len;
-      void path.getBoundingClientRect();
-      path.style.transition = `stroke-dashoffset ${THREAD_MS}ms cubic-bezier(.37,0,.29,1)`;
-      path.style.strokeDashoffset = '0';
+      path.style.strokeDasharray = at[at.length - 1];
+      return { wrap, path, nodes, beats, pts, at, len: at[at.length - 1] };
+    }
 
-      beats.forEach((b, i) => {
-        const t = Math.max((at[Math.min(i, at.length - 1)] / len) * THREAD_MS - 90, 0);
-        threadTimers.push(setTimeout(() => b.classList.add('lit'), t));
+    /* How far along the path the reveal horizon currently sits. */
+    function threadLengthAtHorizon(g) {
+      const wr = g.wrap.getBoundingClientRect();
+      const y  = (window.innerHeight * THREAD_HORIZON) - wr.top;
+      const p  = g.pts;
+      if (y <= p[0].bot) return 0;
+      if (y >= p[p.length - 1].top) return g.len;
+      for (let i = 0; i < p.length - 1; i++) {
+        if (y >= p[i].bot && y <= p[i + 1].top) {
+          const f = (y - p[i].bot) / Math.max(p[i + 1].top - p[i].bot, 1);
+          return g.at[i] + (g.at[i + 1] - g.at[i]) * f;
+        }
+        if (y > p[i + 1].top && y < p[i + 1].bot) return g.at[i + 1];
+      }
+      return g.len;
+    }
+
+    function threadRender() {
+      const g = threadGeom;
+      if (!g) return;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const L = reduce ? g.len : threadLengthAtHorizon(g);
+      g.path.style.strokeDashoffset = (g.len - L);
+
+      g.beats.forEach((b, i) => {
+        const frame = b.querySelector('.beat-frame');
+        const img   = frame.firstElementChild;
+        const say   = b.querySelector('.beat-say p');
+        /* Each plate settles across the run-up to its own anchor, finishing a
+           little early so the line never meets a plate that has not arrived. */
+        const from = i === 0 ? 0 : g.at[i - 1];
+        const span = Math.max((g.at[i] - from) * THREAD_LEAD, 1);
+        const k    = reduce ? 1 : Math.max(0, Math.min(1, (L - from) / span));
+        const e    = 1 - Math.pow(1 - k, 3);
+        const dx   = (b.classList.contains('right') ? 26 : -26) * (1 - e);
+        frame.style.transform = `translate(${dx}px, ${30 * (1 - e)}px) scale(${0.965 + 0.035 * e})`;
+        if (img && img.tagName === 'IMG') {
+          img.style.opacity = (0.16 + 0.84 * e).toFixed(3);
+          img.style.filter  = `grayscale(${(1 - e).toFixed(3)}) contrast(${(0.85 + 0.15 * e).toFixed(3)})`;
+        }
+        if (say) say.style.opacity = (0.55 + 0.45 * e).toFixed(3);
       });
-      circles.forEach((c, i) => {
-        const seg = Math.floor((i + 1) / 2);
-        const t = Math.max((at[Math.min(seg, at.length - 1)] / len) * THREAD_MS - 40, 0);
-        threadTimers.push(setTimeout(() => { c.style.opacity = '1'; }, t));
+
+      Array.from(g.nodes.children).forEach((c, i) => {
+        c.style.opacity = L >= g.at[Math.floor((i + 1) / 2)] - 2 ? '1' : '0';
       });
     }
+
+    /* Driven by a frame loop rather than the scroll event alone. The overlay is
+       a scroll container inside a fixed layer, and a scroll listener on it is
+       not reliably fired in every context, so the loop watches the container's
+       own position and only re-renders when it actually moves. */
+    let threadRaf = null, threadLastTop = null;
+    function threadLoop() {
+      const g = threadGeom;
+      if (!g) { threadRaf = null; return; }
+      const top = g.wrap.getBoundingClientRect().top;
+      if (threadLastTop === null || Math.abs(top - threadLastTop) > 0.5) {
+        threadLastTop = top;
+        threadRender();
+      }
+      threadRaf = requestAnimationFrame(threadLoop);
+    }
+    function onThreadScroll() {
+      if (threadTicking) return;
+      threadTicking = true;
+      requestAnimationFrame(() => { threadTicking = false; threadRender(); });
+    }
+
+    /* The detail overlay animates open, so anything measured in the first
+       frames is taken against a collapsed container. Wait for real layout. */
+    function drawThreadWhenReady(proj, tries) {
+      threadProj = proj;
+      const wrap = detBody.querySelector('.det-thread');
+      const n = tries || 0;
+      if (!wrap || wrap.offsetWidth < 200 || wrap.offsetHeight < 200) {
+        if (n < 60) requestAnimationFrame(() => drawThreadWhenReady(proj, n + 1));
+        return;
+      }
+      threadGeom = buildThreadGeom(proj);
+      threadLastTop = null;
+      threadRender();
+      detOv.addEventListener('scroll', onThreadScroll, { passive: true });
+      if (threadRaf === null) threadLoop();
+    }
+
+    function teardownThread() {
+      detOv.removeEventListener('scroll', onThreadScroll);
+      if (threadRaf !== null) { cancelAnimationFrame(threadRaf); threadRaf = null; }
+      threadGeom = null; threadProj = null; threadLastTop = null;
+    }
+
+    let threadResizeTimer = null;
+    window.addEventListener('resize', () => {
+      if (!threadProj || !detBody.querySelector('.det-thread')) return;
+      clearTimeout(threadResizeTimer);
+      threadResizeTimer = setTimeout(() => {
+        threadGeom = buildThreadGeom(threadProj);
+        threadRender();
+      }, 160);
+    });
 
     function splitGalleryAtTextEnd() {
       const textEl    = detBody.querySelector('.det-text');
@@ -1157,7 +1205,7 @@
       detBody.appendChild(fullGallery);
     }
 
-    function closeDetail() { detOv.classList.remove('open'); }
+    function closeDetail() { detOv.classList.remove('open'); teardownThread(); }
     detClose.addEventListener('click', closeDetail);
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') { closeLb(); closeDetail(); }

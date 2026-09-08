@@ -970,7 +970,8 @@
     };
     const THREAD_HORIZON = 0.72;   /* reveal line, as a fraction of viewport height */
     const THREAD_LEAD    = 0.9;    /* plates finish arriving just before the line does */
-    let threadGeom = null, threadProj = null, threadTicking = false;
+    const THREAD_EASE    = 0.035;  /* lower is slower; the line glides toward the scroll target */
+    let threadGeom = null, threadProj = null, threadTicking = false, threadDrawn = null;
 
     function buildThreadHTML(proj) {
       const shots = proj.gallery || [];
@@ -1033,31 +1034,56 @@
       if (beats.length < 2) return null;
 
       const cfg = THREAD_CURVES[proj.thread] || THREAD_CURVES.sweeping;
+      /* Anchor on the edge facing the middle of the page, not the centre of the
+         plate. Centre anchors put a dot in the middle of a photograph and let
+         the curve between two of them cut straight across a plate. Inner edges
+         keep the whole thread in the channel between the two columns. */
       const pts = beats.map(b => {
-        const o = threadOffset(b.querySelector('.beat-frame'), wrap);
-        return { cx: o.x + o.w / 2, top: o.y, bot: o.y + o.h };
+        const o     = threadOffset(b.querySelector('.beat-frame'), wrap);
+        const say   = threadOffset(b.querySelector('.beat-say'), wrap);
+        const right = b.classList.contains('right');
+        /* Sit in the gutter between the plate and its text, just outside the
+           plate, so the vertical run reads as running alongside the photograph
+           rather than over it. */
+        const gutter = right ? o.x - (say.x + say.w) : say.x - (o.x + o.w);
+        const lane   = Math.max(gutter, 16) / 2;
+        return {
+          cx:  right ? o.x - lane : o.x + o.w + lane,
+          top: o.y, bot: o.y + o.h
+        };
       });
       svg.setAttribute('viewBox', `0 0 ${wrap.offsetWidth} ${wrap.offsetHeight}`);
 
-      const parts = [`M ${pts[0].cx} ${pts[0].bot}`], dots = [];
-      for (let i = 0; i < pts.length - 1; i++) {
-        const A = pts[i], B = pts[i + 1];
+      /* The thread runs DOWN the inner edge of each plate, then curves across to
+         the next one. Connecting one plate's top straight to the next plate's
+         top makes the curve pass through the plate in between, which is what
+         put the line behind the photographs. */
+      const parts = [`M ${pts[0].cx} ${pts[0].top}`], dots = [], topPart = [0];
+      for (let i = 0; i < pts.length; i++) {
+        const A = pts[i];
+        topPart[i] = parts.length - 1;              /* segment index of A's top */
+        parts.push(`L ${A.cx} ${A.bot}`);           /* down A's inner edge */
+        dots.push([A.cx, A.top], [A.cx, A.bot]);
+        const B = pts[i + 1];
+        if (!B) break;
         const gap  = Math.max(B.top - A.bot, 1);
         const c    = Math.max(gap * cfg.t, 34);
         const push = cfg.over * Math.abs(B.cx - A.cx);
         const ax   = A.cx + (A.cx < B.cx ? -push : push);
         const bx   = B.cx + (B.cx < A.cx ? -push : push);
         parts.push(`C ${ax} ${A.bot + c} ${bx} ${B.top - c} ${B.cx} ${B.top}`);
-        dots.push([A.cx, A.bot], [B.cx, B.top]);
       }
       path.setAttribute('d', parts.join(' '));
       path.setAttribute('stroke-width', cfg.w);
 
+      /* Cumulative length after each command, so a plate's arrival can be read
+         off the point where the line reaches its top anchor. */
       const probe = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       svg.appendChild(probe);
-      const at = [0]; let d = parts[0];
-      for (let i = 1; i < parts.length; i++) { d += ' ' + parts[i]; probe.setAttribute('d', d); at.push(probe.getTotalLength()); }
+      const cum = [0]; let d = parts[0];
+      for (let i = 1; i < parts.length; i++) { d += ' ' + parts[i]; probe.setAttribute('d', d); cum.push(probe.getTotalLength()); }
       svg.removeChild(probe);
+      const at = pts.map((_, i) => cum[topPart[i]]);
 
       nodes.innerHTML = '';
       dots.forEach(([cx, cy]) => {
@@ -1089,11 +1115,21 @@
       return g.len;
     }
 
-    function threadRender() {
+    function threadRender(immediate) {
       const g = threadGeom;
       if (!g) return;
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const L = reduce ? g.len : threadLengthAtHorizon(g);
+      const target = reduce ? g.len : threadLengthAtHorizon(g);
+      /* Ease toward where scroll says the line should be rather than snapping
+         to it. Scrolling still drives the direction and the destination; this
+         only sets how unhurriedly it gets there. */
+      if (reduce || immediate || threadDrawn === null) {
+        threadDrawn = target;
+      } else {
+        threadDrawn += (target - threadDrawn) * THREAD_EASE;
+        if (Math.abs(target - threadDrawn) < 0.5) threadDrawn = target;
+      }
+      const L = threadDrawn;
       g.path.style.strokeDashoffset = (g.len - L);
 
       g.beats.forEach((b, i) => {
@@ -1102,7 +1138,10 @@
         const say   = b.querySelector('.beat-say p');
         /* Each plate settles across the run-up to its own anchor, finishing a
            little early so the line never meets a plate that has not arrived. */
-        const from = i === 0 ? 0 : g.at[i - 1];
+        /* The first plate's anchor is at length zero, so it has no run-up on the
+           path. Give it one that starts before the thread does, which means it
+           is already in place when the entry opens. */
+        const from = i === 0 ? -Math.max((g.at[1] || 400) * 0.6, 240) : g.at[i - 1];
         const span = Math.max((g.at[i] - from) * THREAD_LEAD, 1);
         const k    = reduce ? 1 : Math.max(0, Math.min(1, (L - from) / span));
         const e    = 1 - Math.pow(1 - k, 3);
@@ -1116,7 +1155,10 @@
       });
 
       Array.from(g.nodes.children).forEach((c, i) => {
-        c.style.opacity = L >= g.at[Math.floor((i + 1) / 2)] - 2 ? '1' : '0';
+        /* two nodes per plate: its top anchor, then its bottom */
+        const plate = Math.floor(i / 2);
+        const reach = i % 2 ? (g.at[plate + 1] !== undefined ? g.at[plate] + (g.at[plate + 1] - g.at[plate]) * 0.45 : g.len) : g.at[plate];
+        c.style.opacity = L >= reach - 2 ? '1' : '0';
       });
     }
 
@@ -1129,10 +1171,10 @@
       const g = threadGeom;
       if (!g) { threadRaf = null; return; }
       const top = g.wrap.getBoundingClientRect().top;
-      if (threadLastTop === null || Math.abs(top - threadLastTop) > 0.5) {
-        threadLastTop = top;
-        threadRender();
-      }
+      const moved  = threadLastTop === null || Math.abs(top - threadLastTop) > 0.5;
+      const easing = threadDrawn !== null &&
+                     Math.abs(threadLengthAtHorizon(g) - threadDrawn) >= 0.5;
+      if (moved || easing) { threadLastTop = top; threadRender(); }
       threadRaf = requestAnimationFrame(threadLoop);
     }
     function onThreadScroll() {
@@ -1152,8 +1194,8 @@
         return;
       }
       threadGeom = buildThreadGeom(proj);
-      threadLastTop = null;
-      threadRender();
+      threadLastTop = null; threadDrawn = null;
+      threadRender(true);
       detOv.addEventListener('scroll', onThreadScroll, { passive: true });
       if (threadRaf === null) threadLoop();
     }
@@ -1161,7 +1203,7 @@
     function teardownThread() {
       detOv.removeEventListener('scroll', onThreadScroll);
       if (threadRaf !== null) { cancelAnimationFrame(threadRaf); threadRaf = null; }
-      threadGeom = null; threadProj = null; threadLastTop = null;
+      threadGeom = null; threadProj = null; threadLastTop = null; threadDrawn = null;
     }
 
     let threadResizeTimer = null;
@@ -1170,7 +1212,8 @@
       clearTimeout(threadResizeTimer);
       threadResizeTimer = setTimeout(() => {
         threadGeom = buildThreadGeom(threadProj);
-        threadRender();
+        threadDrawn = null;
+        threadRender(true);
       }, 160);
     });
 

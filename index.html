@@ -990,7 +990,7 @@
         }
         case 'step': {
           const mid = A.bot + gap / 2;
-          const r   = Math.min(22, gap / 2 - 1, Math.abs(dx) / 2);
+          const r   = Math.min(THREAD_CORNER, gap / 2 - 1, Math.abs(dx) / 2);
           const s   = dx > 0 ? 1 : -1;
           return `L ${A.cx} ${mid - r}` +
                  ` Q ${A.cx} ${mid} ${A.cx + s * r} ${mid}` +
@@ -1018,6 +1018,7 @@
     const THREAD_HORIZON = 0.72;   /* reveal line, as a fraction of viewport height */
     const THREAD_LEAD    = 0.9;    /* plates finish arriving just before the line does */
     const THREAD_EASE    = 0.022;  /* lower is slower; the line glides toward the scroll target */
+    const THREAD_CORNER  = 18;     /* step join corner radius, capped by the geometry it has to fit */  /* lower is slower; the line glides toward the scroll target */
     let threadGeom = null, threadProj = null, threadTicking = false, threadDrawn = null;
 
     function buildThreadHTML(proj) {

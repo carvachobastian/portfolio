@@ -1019,7 +1019,8 @@
     const THREAD_LEAD    = 0.9;    /* plates finish arriving just before the line does */
     const THREAD_EASE    = 0.022;  /* lower is slower; the line glides toward the scroll target */
     const THREAD_CORNER  = 18;     /* step join corner radius, capped by the geometry it has to fit */
-    const THREAD_TAIL    = 320;    /* scroll left in which the draw is blended to completion */
+    const THREAD_TAIL    = 0.18;   /* closing fraction of the scroll over which the draw is blended to completion */
+    const THREAD_MIN_STEP = 10;     /* px per frame floor, so the glide always arrives */
     let threadGeom = null, threadProj = null, threadTicking = false, threadDrawn = null;
 
     function buildThreadHTML(proj) {
@@ -1181,14 +1182,20 @@
     function threadLengthAtHorizon(g) {
       const wr = g.wrap.getBoundingClientRect();
       const y  = (window.innerHeight * THREAD_HORIZON) - wr.top;
-      const remaining = detOv.scrollHeight - detOv.clientHeight - detOv.scrollTop;
-      if (remaining <= 1) return g.len;
-      if (remaining < THREAD_TAIL) {
-        const raw = threadLengthRaw(g, y);
-        const k   = 1 - (remaining / THREAD_TAIL);
-        return raw + (g.len - raw) * k;
-      }
-      return threadLengthRaw(g, y);
+      /* The horizon sits partway down the viewport, so on a tall window it can
+         never travel far enough to finish the last run. Blend toward the full
+         length over the closing stretch of the scroll, measured as a fraction
+         of the range rather than in pixels: the range shrinks as the viewport
+         grows, so a pixel threshold completes on a short window and falls
+         short on a tall one. At the bottom of the range this is exactly
+         g.len, whatever the window size. */
+      const maxScroll = detOv.scrollHeight - detOv.clientHeight;
+      const raw = threadLengthRaw(g, y);
+      if (maxScroll <= 0) return g.len;
+      const prog = Math.min(1, Math.max(0, detOv.scrollTop / maxScroll));
+      if (prog <= 1 - THREAD_TAIL) return raw;
+      const k = (prog - (1 - THREAD_TAIL)) / THREAD_TAIL;
+      return raw + (g.len - raw) * k;
     }
 
     function threadLengthRaw(g, y) {
@@ -1222,7 +1229,16 @@
       if (reduce || immediate || threadDrawn === null) {
         threadDrawn = target;
       } else {
-        threadDrawn += (target - threadDrawn) * THREAD_EASE;
+        /* Exponential easing alone crawls in its tail: closing the last few
+           hundred pixels took several seconds, which read as the thread simply
+           stopping short. A floor on the step keeps the glide but lets it
+           actually arrive. */
+        const diff = target - threadDrawn;
+        const step = Math.min(
+          Math.abs(diff),
+          Math.max(Math.abs(diff) * THREAD_EASE, THREAD_MIN_STEP)
+        );
+        threadDrawn += Math.sign(diff) * step;
         if (Math.abs(target - threadDrawn) < 0.5) threadDrawn = target;
       }
       const L = threadDrawn;

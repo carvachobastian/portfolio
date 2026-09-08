@@ -430,6 +430,11 @@
       fill: none; stroke: var(--accent); stroke-linecap: round; opacity: .9;
     }
     .det-thread-node { fill: var(--bg); stroke: var(--accent); stroke-width: 1.5; }
+    /* Registration marks: short stubs from the run to the edge of each plate,
+       so the thread reads as an armature the photographs hang on rather than a
+       line that happens to pass beside them. */
+    .det-thread-tie { stroke: var(--accent); stroke-width: 1; opacity: 0; }
+    .det-thread-rule { stroke: var(--accent); stroke-width: 1; opacity: 0; stroke-dasharray: 2 4; }
     .beat {
       position: relative; z-index: 1; display: grid; align-items: center;
       gap: clamp(20px, 4vw, 56px); margin-bottom: clamp(64px, 9vw, 124px);
@@ -970,7 +975,7 @@
     };
     const THREAD_HORIZON = 0.72;   /* reveal line, as a fraction of viewport height */
     const THREAD_LEAD    = 0.9;    /* plates finish arriving just before the line does */
-    const THREAD_EASE    = 0.035;  /* lower is slower; the line glides toward the scroll target */
+    const THREAD_EASE    = 0.022;  /* lower is slower; the line glides toward the scroll target */
     let threadGeom = null, threadProj = null, threadTicking = false, threadDrawn = null;
 
     function buildThreadHTML(proj) {
@@ -1012,6 +1017,7 @@
       const extra = paras.slice(shots.length).map(p => `<p>${p}</p>`).join('');
       return `<div class="det-thread">
           <svg class="det-thread-svg" aria-hidden="true">
+            <g class="det-thread-ties"></g>
             <path class="det-thread-path"></path><g class="det-thread-nodes"></g>
           </svg>${beats}
         </div>${extra ? `<div class="det-text" style="grid-column:1/-1;max-width:62ch;margin-top:60px">${extra}</div>` : ''}`;
@@ -1030,6 +1036,7 @@
       const svg   = wrap.querySelector('.det-thread-svg');
       const path  = wrap.querySelector('.det-thread-path');
       const nodes = wrap.querySelector('.det-thread-nodes');
+      const ties  = wrap.querySelector('.det-thread-ties');
       const beats = Array.from(wrap.querySelectorAll('.beat'));
       if (beats.length < 2) return null;
 
@@ -1093,9 +1100,32 @@
         nodes.appendChild(c);
       });
 
+      /* One tie per plate corner, reaching from the run to the plate edge, plus
+         a dashed rule across the plate's own width at its top. Together they
+         make the line describe the layout instead of merely threading it. */
+      ties.innerHTML = '';
+      beats.forEach((b, i) => {
+        const o     = threadOffset(b.querySelector('.beat-frame'), wrap);
+        const right = b.classList.contains('right');
+        const edge  = right ? o.x : o.x + o.w;
+        const P     = pts[i];
+        [P.top, P.bot].forEach(y => {
+          const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          l.setAttribute('x1', P.cx); l.setAttribute('y1', y);
+          l.setAttribute('x2', edge); l.setAttribute('y2', y);
+          l.setAttribute('class', 'det-thread-tie');
+          ties.appendChild(l);
+        });
+        const r = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        r.setAttribute('x1', edge); r.setAttribute('y1', P.top);
+        r.setAttribute('x2', right ? o.x + o.w : o.x); r.setAttribute('y2', P.top);
+        r.setAttribute('class', 'det-thread-rule');
+        ties.appendChild(r);
+      });
+
       path.style.transition = 'none';
       path.style.strokeDasharray = at[at.length - 1];
-      return { wrap, path, nodes, beats, pts, at, len: at[at.length - 1] };
+      return { wrap, path, nodes, ties, beats, pts, at, len: at[at.length - 1] };
     }
 
     /* How far along the path the reveal horizon currently sits. */
@@ -1152,6 +1182,16 @@
           img.style.filter  = `grayscale(${(1 - e).toFixed(3)}) contrast(${(0.85 + 0.15 * e).toFixed(3)})`;
         }
         if (say) say.style.opacity = (0.55 + 0.45 * e).toFixed(3);
+      });
+
+      /* three marks per plate: tie at top, tie at bottom, rule across the top */
+      Array.from(g.ties.children).forEach((el, i) => {
+        const plate = Math.floor(i / 3);
+        /* Fade in as the line arrives, not after it. The last plate's anchor is
+           the end of the path, so a ramp that starts at the anchor would never
+           complete for it. */
+        const k = Math.max(0, Math.min(1, (L - g.at[plate] + 70) / 130));
+        el.style.opacity = (el.classList.contains('det-thread-rule') ? 0.32 : 0.55) * k;
       });
 
       Array.from(g.nodes.children).forEach((c, i) => {

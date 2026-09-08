@@ -83,3 +83,8 @@ An image is either a path, or an object when it needs help:
 loopback. Start it from the browser pane rather than running
 `Start Server.command`. `launch.json` is read from the session root, so start
 sessions inside this directory.
+
+It runs `server.py --no-open` rather than the stdlib static server, because
+`server.py` sends `Cache-Control: no-cache` for `.html` and `.js`. Without that
+the browser serves a stale `projects.js` and edits appear not to work. Do not
+swap it for `python3 -m http.server` for that reason.

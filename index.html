@@ -417,6 +417,74 @@
     .det-gallery-feat-group .fg-landscape { aspect-ratio: 3/2; }
 
     /* Full-width gallery section (below text column) */
+    /* ── Story thread layout (opt in per project: layout: 'thread') ──────────
+       Photographs alternate down the page with the writing opposite, and a
+       single drawn line threads through them in reading order. Plates are
+       opaque in every state so the line only ever shows between them. */
+    .det-thread { grid-column: 1 / -1; position: relative; }
+    .det-thread-svg {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      pointer-events: none; overflow: visible; z-index: 0;
+    }
+    .det-thread-path {
+      fill: none; stroke: var(--accent); stroke-linecap: round; opacity: .9;
+    }
+    .det-thread-node { fill: var(--bg); stroke: var(--accent); stroke-width: 1.5; }
+    .beat {
+      position: relative; z-index: 1; display: grid; align-items: center;
+      gap: clamp(20px, 4vw, 56px); margin-bottom: clamp(64px, 9vw, 124px);
+    }
+    .beat:last-child { margin-bottom: 0; }
+    .beat.sz-wide  { grid-template-columns: 1.35fr .65fr; }
+    .beat.sz-mid   { grid-template-columns: 1fr 1fr; }
+    .beat.sz-tall  { grid-template-columns: .72fr 1.28fr; }
+    .beat.sz-small { grid-template-columns: .62fr 1.38fr; }
+    .beat.sz-wide  .beat-frame { aspect-ratio: 3/2; }
+    .beat.sz-mid   .beat-frame { aspect-ratio: 4/3; }
+    .beat.sz-tall  .beat-frame { aspect-ratio: 4/5; }
+    .beat.sz-small .beat-frame { aspect-ratio: 1/1; }
+    .beat.right .beat-frame { order: 2; }
+    .beat.right .beat-say   { order: 1; text-align: right; }
+    .beat-frame {
+      margin: 0; background: var(--bg); overflow: hidden; line-height: 0;
+      box-shadow: 0 0 0 1px var(--divider) inset; cursor: pointer;
+      transform: translate(var(--fx, 0px), 30px) scale(.965);
+      transition: transform 1250ms cubic-bezier(.19,.78,.22,1);
+    }
+    .beat.left  .beat-frame { --fx: -26px; }
+    .beat.right .beat-frame { --fx: 26px; }
+    .beat.lit   .beat-frame { transform: translate(0,0) scale(1); }
+    .beat-frame img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      opacity: .16; filter: grayscale(1) contrast(.85);
+      transition: opacity 950ms cubic-bezier(.4,0,.2,1),
+                  filter  950ms cubic-bezier(.4,0,.2,1);
+    }
+    .beat.lit .beat-frame img { opacity: 1; filter: grayscale(0) contrast(1); }
+    .beat-say .beat-n {
+      display: block; margin-bottom: 10px; font-size: 10px; letter-spacing: .3em;
+      text-transform: uppercase; color: var(--accent);
+    }
+    .beat-say p {
+      margin: 0; max-width: 34ch; font-size: 14px; line-height: 2.0;
+      color: var(--muted); opacity: .55; transition: opacity 800ms ease;
+    }
+    .beat.lit .beat-say p { opacity: 1; }
+    .beat.right .beat-say p { margin-left: auto; }
+    @media (max-width: 900px) {
+      .beat, .beat.sz-wide, .beat.sz-mid, .beat.sz-tall, .beat.sz-small {
+        grid-template-columns: 1fr; gap: 16px;
+      }
+      .beat.right .beat-frame { order: 1; }
+      .beat.right .beat-say { order: 2; text-align: left; }
+      .beat.right .beat-say p { margin-left: 0; }
+      .det-thread-svg { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .beat-frame, .beat-frame img, .beat-say p { transition: none; }
+      .beat-frame { transform: none !important; }
+    }
+
     .det-gallery-full { grid-column: 1 / -1; }
 
     /* Video embeds in gallery */
@@ -874,14 +942,189 @@
 
       const galleryHTML = (proj.gallery || []).map((t, i) => renderGalleryItem(t, i)).join('');
 
-      detBody.innerHTML = `
-        <div class="det-text">${parasHTML}</div>
-        <div class="det-gallery">${galleryHTML}</div>`;
+      if (proj.layout === 'thread') {
+        detBody.innerHTML = buildThreadHTML(proj);
+        detOv.scrollTop = 0;
+        detOv.classList.add('open');
+        drawThreadWhenReady(proj);
+      } else {
+        detBody.innerHTML = `
+          <div class="det-text">${parasHTML}</div>
+          <div class="det-gallery">${galleryHTML}</div>`;
 
-      detOv.scrollTop = 0;
-      detOv.classList.add('open');
-      requestAnimationFrame(() => requestAnimationFrame(() => splitGalleryAtTextEnd()));
+        detOv.scrollTop = 0;
+        detOv.classList.add('open');
+        requestAnimationFrame(() => requestAnimationFrame(() => splitGalleryAtTextEnd()));
+      }
     });
+
+    /* ── Story thread ────────────────────────────────────────────────────────
+       Pairs each gallery image with the paragraph at the same index. Anchors
+       come from layout offsets, not getBoundingClientRect, because the plates
+       are transformed while they float in and would otherwise drag the line
+       along with them. */
+    const THREAD_SIZES  = ['sz-wide', 'sz-tall', 'sz-mid', 'sz-small'];
+    const THREAD_CURVES = {
+      taut:     { t: 0.26, over: 0,   w: 1.1 },
+      sweeping: { t: 0.58, over: 0,   w: 1.5 },
+      meander:  { t: 0.92, over: 0.3, w: 1.5 }
+    };
+    const THREAD_MS = 3000;
+    let threadTimers = [];
+
+    function buildThreadHTML(proj) {
+      const shots = proj.gallery || [];
+      const paras = proj.text || [];
+      const beats = shots.map((item, i) => {
+        const side  = i % 2 ? 'right' : 'left';
+        const size  = THREAD_SIZES[i % THREAD_SIZES.length];
+        const say   = paras[i] ? `<p>${paras[i]}</p>` : '';
+        const n     = String(i + 1).padStart(2, '0');
+
+        /* A gallery item is an image, a video, or a featured group. The plate
+           takes whichever it is; a group shows its first frame. */
+        let inner;
+        if (item && item.layout === 'feat-group' && Array.isArray(item.items)) {
+          const { src, pos } = imgEntry(item.items[0]);
+          const style = pos ? ` style="object-position:${esc(pos)}"` : '';
+          inner = `<img src="${esc(src)}" alt="${proj.title.map(esc).join(' ')}"
+              data-lb loading="lazy" decoding="async"${style}>`;
+        } else {
+          const { src, pos } = imgEntry(item);
+          const type = mediaType(src);
+          if (type === 'youtube' || type === 'vimeo') {
+            inner = `<iframe src="${esc(embedUrl(src, type))}" allowfullscreen
+              style="width:100%;height:100%;border:0"></iframe>`;
+          } else if (type === 'video') {
+            inner = `<video src="${esc(src)}" controls preload="none"
+              style="width:100%;height:100%;object-fit:cover"></video>`;
+          } else {
+            const style = pos ? ` style="object-position:${esc(pos)}"` : '';
+            inner = `<img src="${esc(src)}" alt="${proj.title.map(esc).join(' ')}"
+              data-lb loading="lazy" decoding="async"${style}>`;
+          }
+        }
+        return `<div class="beat ${side} ${size}">
+            <figure class="beat-frame">${inner}</figure>
+            <div class="beat-say"><span class="beat-n">${n}</span>${say}</div>
+          </div>`;
+      }).join('');
+      const extra = paras.slice(shots.length).map(p => `<p>${p}</p>`).join('');
+      return `<div class="det-thread">
+          <svg class="det-thread-svg" aria-hidden="true">
+            <path class="det-thread-path"></path><g class="det-thread-nodes"></g>
+          </svg>${beats}
+        </div>${extra ? `<div class="det-text" style="grid-column:1/-1;max-width:62ch;margin-top:60px">${extra}</div>` : ''}`;
+    }
+
+    function threadOffset(el, root) {
+      let x = 0, y = 0, n = el;
+      while (n && n !== root) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
+      return { x, y, w: el.offsetWidth, h: el.offsetHeight };
+    }
+
+    /* The detail overlay animates open, so for the first frames the thread
+       container has no usable width and any path measured then is garbage.
+       Wait for real layout instead of guessing a frame count, and redraw on
+       resize so the line keeps meeting the plates. */
+    let threadProj = null;
+    function drawThreadWhenReady(proj, tries) {
+      threadProj = proj;
+      const wrap = detBody.querySelector('.det-thread');
+      const n = tries || 0;
+      if (!wrap || wrap.offsetWidth < 200 || wrap.offsetHeight < 200) {
+        if (n < 60) { requestAnimationFrame(() => drawThreadWhenReady(proj, n + 1)); }
+        return;
+      }
+      drawThread(proj);
+    }
+
+    let threadResizeTimer = null;
+    window.addEventListener('resize', () => {
+      if (!threadProj || !detBody.querySelector('.det-thread')) return;
+      clearTimeout(threadResizeTimer);
+      threadResizeTimer = setTimeout(() => {
+        const path = detBody.querySelector('.det-thread-path');
+        drawThread(threadProj);
+        if (path) { path.style.transition = 'none'; path.style.strokeDasharray = 'none'; path.style.strokeDashoffset = '0'; }
+        detBody.querySelectorAll('.beat').forEach(b => b.classList.add('lit'));
+        detBody.querySelectorAll('.det-thread-node').forEach(c => { c.style.opacity = '1'; });
+      }, 160);
+    });
+
+    function drawThread(proj) {
+      threadTimers.forEach(clearTimeout); threadTimers = [];
+      const wrap = detBody.querySelector('.det-thread');
+      if (!wrap) return;
+      const svg   = wrap.querySelector('.det-thread-svg');
+      const path  = wrap.querySelector('.det-thread-path');
+      const nodes = wrap.querySelector('.det-thread-nodes');
+      const beats = Array.from(wrap.querySelectorAll('.beat'));
+      if (beats.length < 2) { beats.forEach(b => b.classList.add('lit')); return; }
+
+      const cfg = THREAD_CURVES[proj.thread] || THREAD_CURVES.sweeping;
+      const pts = beats.map(b => {
+        const o = threadOffset(b.querySelector('.beat-frame'), wrap);
+        return { cx: o.x + o.w / 2, top: o.y, bot: o.y + o.h };
+      });
+      svg.setAttribute('viewBox', `0 0 ${wrap.offsetWidth} ${wrap.offsetHeight}`);
+
+      const parts = [`M ${pts[0].cx} ${pts[0].bot}`], dots = [];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const A = pts[i], B = pts[i + 1];
+        const gap  = Math.max(B.top - A.bot, 1);
+        const c    = Math.max(gap * cfg.t, 34);
+        const push = cfg.over * Math.abs(B.cx - A.cx);
+        const ax   = A.cx + (A.cx < B.cx ? -push : push);
+        const bx   = B.cx + (B.cx < A.cx ? -push : push);
+        parts.push(`C ${ax} ${A.bot + c} ${bx} ${B.top - c} ${B.cx} ${B.top}`);
+        dots.push([A.cx, A.bot], [B.cx, B.top]);
+      }
+      path.setAttribute('d', parts.join(' '));
+      path.setAttribute('stroke-width', cfg.w);
+
+      const probe = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      svg.appendChild(probe);
+      const at = [0]; let d = parts[0];
+      for (let i = 1; i < parts.length; i++) { d += ' ' + parts[i]; probe.setAttribute('d', d); at.push(probe.getTotalLength()); }
+      svg.removeChild(probe);
+      const len = at[at.length - 1];
+
+      nodes.innerHTML = '';
+      dots.forEach(([cx, cy]) => {
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', '3.5');
+        c.setAttribute('class', 'det-thread-node');
+        c.style.opacity = '0'; c.style.transition = 'opacity 500ms ease';
+        nodes.appendChild(c);
+      });
+      const circles = Array.from(nodes.children);
+
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        path.style.strokeDasharray = 'none'; path.style.strokeDashoffset = '0';
+        beats.forEach(b => b.classList.add('lit'));
+        circles.forEach(c => { c.style.opacity = '1'; });
+        return;
+      }
+
+      beats.forEach(b => b.classList.remove('lit'));
+      path.style.transition = 'none';
+      path.style.strokeDasharray = len;
+      path.style.strokeDashoffset = len;
+      void path.getBoundingClientRect();
+      path.style.transition = `stroke-dashoffset ${THREAD_MS}ms cubic-bezier(.37,0,.29,1)`;
+      path.style.strokeDashoffset = '0';
+
+      beats.forEach((b, i) => {
+        const t = Math.max((at[Math.min(i, at.length - 1)] / len) * THREAD_MS - 90, 0);
+        threadTimers.push(setTimeout(() => b.classList.add('lit'), t));
+      });
+      circles.forEach((c, i) => {
+        const seg = Math.floor((i + 1) / 2);
+        const t = Math.max((at[Math.min(seg, at.length - 1)] / len) * THREAD_MS - 40, 0);
+        threadTimers.push(setTimeout(() => { c.style.opacity = '1'; }, t));
+      });
+    }
 
     function splitGalleryAtTextEnd() {
       const textEl    = detBody.querySelector('.det-text');

@@ -1018,7 +1018,8 @@
     const THREAD_HORIZON = 0.72;   /* reveal line, as a fraction of viewport height */
     const THREAD_LEAD    = 0.9;    /* plates finish arriving just before the line does */
     const THREAD_EASE    = 0.022;  /* lower is slower; the line glides toward the scroll target */
-    const THREAD_CORNER  = 18;     /* step join corner radius, capped by the geometry it has to fit */  /* lower is slower; the line glides toward the scroll target */
+    const THREAD_CORNER  = 18;     /* step join corner radius, capped by the geometry it has to fit */
+    const THREAD_TAIL    = 320;    /* scroll left in which the draw is blended to completion */
     let threadGeom = null, threadProj = null, threadTicking = false, threadDrawn = null;
 
     function buildThreadHTML(proj) {
@@ -1162,18 +1163,44 @@
         ties.appendChild(r);
       });
 
+      /* The path runs past the last anchor, down the final plate's edge, so the
+         total length is the end of the path and not the last entry in `at`. */
+      const total = cum[cum.length - 1];
       path.style.transition = 'none';
-      path.style.strokeDasharray = at[at.length - 1];
-      return { wrap, path, nodes, ties, beats, pts, at, len: at[at.length - 1] };
+      path.style.strokeDasharray = total;
+      return { wrap, path, nodes, ties, beats, pts, at, len: total };
     }
 
-    /* How far along the path the reveal horizon currently sits. */
+    /* How far along the path the reveal horizon currently sits.
+
+       The horizon sits partway down the viewport, so at maximum scroll it stops
+       short of the bottom of the last plate and the final run could never
+       finish. Over the last stretch of scroll the result is blended toward the
+       full length, so reaching the bottom of the entry always completes the
+       thread. */
     function threadLengthAtHorizon(g) {
       const wr = g.wrap.getBoundingClientRect();
       const y  = (window.innerHeight * THREAD_HORIZON) - wr.top;
-      const p  = g.pts;
+      const remaining = detOv.scrollHeight - detOv.clientHeight - detOv.scrollTop;
+      if (remaining <= 1) return g.len;
+      if (remaining < THREAD_TAIL) {
+        const raw = threadLengthRaw(g, y);
+        const k   = 1 - (remaining / THREAD_TAIL);
+        return raw + (g.len - raw) * k;
+      }
+      return threadLengthRaw(g, y);
+    }
+
+    function threadLengthRaw(g, y) {
+      const p    = g.pts;
+      const last = p[p.length - 1];
       if (y <= p[0].bot) return 0;
-      if (y >= p[p.length - 1].top) return g.len;
+      if (y >= last.bot) return g.len;
+      if (y >= last.top) {
+        /* travelling down the final plate: draw its run in step with the scroll */
+        const a = g.at[g.at.length - 1];
+        return a + (g.len - a) * ((y - last.top) / Math.max(last.bot - last.top, 1));
+      }
       for (let i = 0; i < p.length - 1; i++) {
         if (y >= p[i].bot && y <= p[i + 1].top) {
           const f = (y - p[i].bot) / Math.max(p[i + 1].top - p[i].bot, 1);

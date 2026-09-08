@@ -968,11 +968,53 @@
        Plate transform and image reveal are written inline here so they
        interpolate with the line instead of switching on a class. */
     const THREAD_SIZES  = ['sz-wide', 'sz-tall', 'sz-mid', 'sz-small'];
-    const THREAD_CURVES = {
-      taut:     { t: 0.26, over: 0,   w: 1.1 },
-      sweeping: { t: 0.58, over: 0,   w: 1.5 },
-      meander:  { t: 0.92, over: 0.3, w: 1.5 }
+    /* How the run down one plate joins the run down the next. Every style spans
+       the same two anchors, so only the character of the join changes. */
+    const THREAD_JOINS = {
+      ess:     { w: 1.4 },   /* symmetric S, control points meeting at the midline */
+      soft:    { w: 1.4 },   /* the same S, eased shallower */
+      direct:  { w: 1.3 },   /* one straight diagonal */
+      chamfer: { w: 1.3 },   /* vertical lead, 45 degree cut, vertical lead */
+      step:    { w: 1.3 },   /* orthogonal with rounded corners, blueprint */
+      meander: { w: 1.5 }    /* the old wide sweep, kept for comparison */
     };
+    function threadJoin(style, A, B) {
+      const gap = Math.max(B.top - A.bot, 1);
+      const dx  = B.cx - A.cx;
+      switch (style) {
+        case 'direct':
+          return `L ${B.cx} ${B.top}`;
+        case 'chamfer': {
+          const lead = Math.max((gap - Math.abs(dx)) / 2, gap * 0.14);
+          return `L ${A.cx} ${A.bot + lead} L ${B.cx} ${B.top - lead} L ${B.cx} ${B.top}`;
+        }
+        case 'step': {
+          const mid = A.bot + gap / 2;
+          const r   = Math.min(22, gap / 2 - 1, Math.abs(dx) / 2);
+          const s   = dx > 0 ? 1 : -1;
+          return `L ${A.cx} ${mid - r}` +
+                 ` Q ${A.cx} ${mid} ${A.cx + s * r} ${mid}` +
+                 ` L ${B.cx - s * r} ${mid}` +
+                 ` Q ${B.cx} ${mid} ${B.cx} ${mid + r}` +
+                 ` L ${B.cx} ${B.top}`;
+        }
+        case 'soft': {
+          const c = gap * 0.34;
+          return `C ${A.cx} ${A.bot + c} ${B.cx} ${B.top - c} ${B.cx} ${B.top}`;
+        }
+        case 'meander': {
+          const c = gap * 0.92, push = 0.3 * Math.abs(dx);
+          const ax = A.cx + (dx > 0 ? -push : push);
+          const bx = B.cx + (dx < 0 ? -push : push);
+          return `C ${ax} ${A.bot + c} ${bx} ${B.top - c} ${B.cx} ${B.top}`;
+        }
+        case 'ess':
+        default: {
+          const c = gap * 0.5;   /* meet exactly at the midline, no overshoot */
+          return `C ${A.cx} ${A.bot + c} ${B.cx} ${B.top - c} ${B.cx} ${B.top}`;
+        }
+      }
+    }
     const THREAD_HORIZON = 0.72;   /* reveal line, as a fraction of viewport height */
     const THREAD_LEAD    = 0.9;    /* plates finish arriving just before the line does */
     const THREAD_EASE    = 0.022;  /* lower is slower; the line glides toward the scroll target */
@@ -1040,7 +1082,8 @@
       const beats = Array.from(wrap.querySelectorAll('.beat'));
       if (beats.length < 2) return null;
 
-      const cfg = THREAD_CURVES[proj.thread] || THREAD_CURVES.sweeping;
+      const style = THREAD_JOINS[proj.thread] ? proj.thread : 'ess';
+      const cfg   = THREAD_JOINS[style];
       /* Anchor on the edge facing the middle of the page, not the centre of the
          plate. Centre anchors put a dot in the middle of a photograph and let
          the curve between two of them cut straight across a plate. Inner edges
@@ -1073,12 +1116,7 @@
         dots.push([A.cx, A.top], [A.cx, A.bot]);
         const B = pts[i + 1];
         if (!B) break;
-        const gap  = Math.max(B.top - A.bot, 1);
-        const c    = Math.max(gap * cfg.t, 34);
-        const push = cfg.over * Math.abs(B.cx - A.cx);
-        const ax   = A.cx + (A.cx < B.cx ? -push : push);
-        const bx   = B.cx + (B.cx < A.cx ? -push : push);
-        parts.push(`C ${ax} ${A.bot + c} ${bx} ${B.top - c} ${B.cx} ${B.top}`);
+        parts.push(threadJoin(style, A, B));
       }
       path.setAttribute('d', parts.join(' '));
       path.setAttribute('stroke-width', cfg.w);

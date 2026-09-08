@@ -365,7 +365,7 @@ const PROJECTS = [
   {
     id:      'sound-engineering',
     layout:  'thread',          // story thread: pairs each gallery image with text[i]
-    thread:  'sweeping',        // taut | sweeping | meander
+    thread:  'ess',             // ess | soft | direct | chamfer | step | meander
     year:    '2015',
     yearTag: '2015 - 2020',
     title:   ['Sound', 'Engineering'],

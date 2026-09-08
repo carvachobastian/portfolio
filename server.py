@@ -13,6 +13,7 @@ Listens on 127.0.0.1 only. The upload endpoint is unauthenticated,
 so it must never be exposed to a network.
 """
 
+import sys
 import http.server
 import socketserver
 import json
@@ -150,7 +151,10 @@ print(f'  │   http://localhost:{PORT}                  │')
 print( '  │   Press Ctrl+C to stop                   │')
 print( '  └─────────────────────────────────────────┘\n')
 
-threading.Thread(target=open_browser, daemon=True).start()
+# Skip the browser pop when another tool is already showing the page,
+# for example the Claude Code preview pane: python3 server.py --no-open
+if '--no-open' not in sys.argv:
+    threading.Thread(target=open_browser, daemon=True).start()
 
 socketserver.TCPServer.allow_reuse_address = True
 with socketserver.TCPServer(('127.0.0.1', PORT), Handler) as httpd:
